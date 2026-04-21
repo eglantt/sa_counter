@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Stray Animals Street Counter v1.1</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --dog-color: #d35400;
+            --cat-color: #2980b9;
+            --accent: #27ae60;
+            --text: #2c3e50;
+        }
+
+        body { 
+            margin: 0; 
+            font-family: sans-serif; 
+            background: var(--bg-color);
+            color: var(--text);
+            /* Исправлено: разрешаем скролл, если контент не влез */
+            overflow-y: auto; 
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        #map { 
+            height: 50vh; /* Уменьшили высоту карты для лучшего скролла кнопок */
+            width: 100%; 
+            border-bottom: 2px solid #ddd;
+            flex-shrink: 0;
+        }
+
+        .interface {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: white;
+            flex-grow: 1;
+        }
+
+        .stats-panel {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: #eee;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        button {
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            font-size: 1.1rem;
+            padding: 15px 5px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .btn-dog { background: var(--dog-color); }
+        .btn-cat { background: var(--cat-color); }
+        .btn-gps { background: #7f8c8d; grid-column: span 2; }
+        .btn-export { background: var(--accent); }
+        .btn-clear { background: #c0392b; }
+
+        #status-msg { font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="interface">
+    <div class="stats-panel">
+        <div>Учтено: <b id="total-stat">0</b></div>
+        <div id="status-msg" style="color: #d35400;">GPS: Ожидание...</div>
+    </div>
+
+    <div class="btn-grid">
+        <button class="btn-gps" onclick="forceGPS()">🛰️ ВКЛЮЧИТЬ GPS / ОБНОВИТЬ</button>
+        <button class="btn-dog" onclick="recordAnimal('Собака')">🐕 СОБАКА</button>
+        <button class="btn-cat" onclick="recordAnimal('Кошка')">🐈 КОШКА</button>
+        <button class="btn-export" onclick="exportData()">💾 ЭКСПОРТ CSV</button>
+        <button class="btn-clear" onclick="resetAll()">🗑️ СБРОС</button>
+    </div>
+    <div style="height: 20px;"></div> </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    let db = JSON.parse(localStorage.getItem('stray_animals_v1') || '[]');
+    let currentCoords = [43.2389, 76.9455]; 
+
+    const map = L.map('map', { zoomControl: false }).setView(currentCoords, 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    const userIcon = L.circleMarker(currentCoords, {
+        radius: 9, color: 'white', fillColor: '#3498db', fillOpacity: 1, weight: 3
+    }).addTo(map);
+
+    function updateStats() {
+        document.getElementById('total-stat').innerText = db.length;
+        localStorage.setItem('stray_animals_v1', JSON.stringify(db));
+    }
+
+    // Принудительный запрос геолокации
+    function forceGPS() {
+        document.getElementById('status-msg').innerText = "Поиск спутников...";
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                currentCoords = [pos.coords.latitude, pos.coords.longitude];
+                const latlng = L.latLng(currentCoords[0], currentCoords[1]);
+                userIcon.setLatLng(latlng);
+                map.setView(latlng, 17);
+                document.getElementById('status-msg').innerText = "GPS: Активен";
+                document.getElementById('status-msg').style.color = "#27ae60";
+            },
+            (err) => {
+                console.error(err);
+                alert("Ошибка GPS: " + err.message + "\n\nПопробуйте включить GPS и обновить страницу.");
+                document.getElementById('status-msg').innerText = "GPS: Ошибка";
+                document.getElementById('status-msg').style.color = "#c0392b";
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    }
+
+    function recordAnimal(type) {
+        // Проверяем GPS перед записью
+        if (document.getElementById('status-msg').innerText.includes("Ошибка")) {
+            if(!confirm("GPS не определен. Использовать последние известные координаты?")) return;
+        }
+
+        const count = prompt(`Количество (${type}):`, "1");
+        if (count === null) return;
+
+        const entry = {
+            id: Date.now(),
+            type: type,
+            amount: parseInt(count) || 1,
+            lat: currentCoords[0],
+            lng: currentCoords[1],
+            time: new Date().toLocaleTimeString('ru-RU')
+        };
+
+        db.push(entry);
+        renderMarker(entry);
+        updateStats();
+    }
+
+    function renderMarker(e) {
+        const color = e.type === 'Собака' ? '#d35400' : '#2980b9';
+        L.circleMarker([e.lat, e.lng], {
+            radius: 6, color: 'white', fillColor: color, fillOpacity: 0.8, weight: 1
+        }).addTo(map).bindPopup(`${e.type} (x${e.amount}) - ${e.time}`);
+    }
+
+    function exportData() {
+        if (db.length === 0) return alert("Нет данных");
+        let csv = "\uFEFFID;Тип;Кол-во;Широта;Долгота;Время\n";
+        db.forEach(i => { csv += `${i.id};${i.type};${i.amount};${i.lat};${i.lng};${i.time}\n`; });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `census_v1_1.csv`;
+        link.click();
+    }
+
+    function resetAll() {
+        if (confirm("Удалить всё?")) {
+            db = [];
+            localStorage.removeItem('stray_animals_v1');
+            location.reload();
+        }
+    }
+
+    db.forEach(renderMarker);
+    updateStats();
+    // Пытаемся включить GPS сразу при загрузке
+    setTimeout(forceGPS, 1000);
+
+</script>
+</body>
+</html>
