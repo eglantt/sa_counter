@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Street Counter v1.0.2</title>
+    <title>Street Counter v1.0.3</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
@@ -20,13 +20,21 @@
             margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
             background: var(--ui-bg); color: var(--text-main); 
             display: flex; flex-direction: column; 
-            height: 100dvh; height: 100vh; overflow: hidden;
+            height: 100dvh; overflow: hidden;
         }
 
-        /* Карта */
-        #map { height: 40vh; width: 100%; flex-shrink: 0; z-index: 1; }
+        #map { height: 40vh; width: 100%; flex-shrink: 0; z-index: 1; position: relative; }
 
-        /* Верхняя сервисная панель (закреплена) */
+        /* Кнопка центрирования на карте */
+        .map-overlay-btn {
+            position: absolute; bottom: 15px; right: 15px; z-index: 500;
+            width: 44px; height: 44px; background: var(--white);
+            border: 2px solid rgba(0,0,0,0.2); border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .map-overlay-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
         .service-bar {
             background: var(--white); border-bottom: 1px solid var(--border);
             padding: 8px 15px; display: flex; justify-content: space-between;
@@ -40,7 +48,6 @@
             padding: 5px 10px; border-radius: 6px; font-size: 0.7rem; 
         }
 
-        /* Интерфейс шторки */
         .sheet {
             flex-grow: 1; background: var(--white);
             display: flex; flex-direction: column;
@@ -58,14 +65,12 @@
         .scroll-container {
             flex-grow: 1; overflow-y: auto; 
             -webkit-overflow-scrolling: touch;
-            padding: 15px;
-            padding-bottom: 160px; /* Запас для скролла до нижних кнопок */
+            padding: 15px; padding-bottom: 160px;
         }
 
         .content-section { display: none; }
         .content-section.active { display: block; }
 
-        /* Элементы управления */
         .control-group { margin-bottom: 18px; }
         .group-label { font-size: 0.7rem; font-weight: 700; color: #86868b; text-transform: uppercase; margin-bottom: 8px; }
         
@@ -100,7 +105,9 @@
 </head>
 <body>
 
-<div id="map"></div>
+<div id="map">
+    <div id="follow-btn" class="map-overlay-btn active" onclick="toggleFollow()">◎</div>
+</div>
 
 <div class="service-bar">
     <div class="gps-status">
@@ -125,7 +132,6 @@
                     <div class="segment" data-val="Кошка">КОШКА</div>
                 </div>
             </div>
-
             <div class="control-group">
                 <div class="group-label">Пол / Возраст</div>
                 <div style="display: flex; gap: 8px;">
@@ -141,7 +147,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="control-group">
                 <div class="group-label">Метки / Тип</div>
                 <div class="segmented-control" id="tag-ctrl">
@@ -151,7 +156,6 @@
                     <div class="segment" data-val="Порода">ПОРОДА</div>
                 </div>
             </div>
-
             <div class="control-group">
                 <div class="group-label">Дистанция до центра группы (м)</div>
                 <div class="segmented-control" id="dist-ctrl">
@@ -160,7 +164,6 @@
                     <div class="segment" data-val="25">10м+</div>
                 </div>
             </div>
-
             <button class="btn-main btn-add" onclick="addToGroup()">ВКЛЮЧИТЬ В ГРУППУ</button>
             <div class="group-preview" id="group-list">Группа не сформирована</div>
             <button class="btn-main btn-save" onclick="finalizeGroup()">ЗАФИКСИРОВАТЬ ГРУППУ</button>
@@ -206,33 +209,34 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // --- Инициализация ---
-    let db = JSON.parse(localStorage.getItem('sc_v102_data') || '[]');
-    let track = JSON.parse(localStorage.getItem('sc_v102_track') || '[]');
+    let db = JSON.parse(localStorage.getItem('sc_v103_data') || '[]');
+    let track = JSON.parse(localStorage.getItem('sc_v103_track') || '[]');
     let currentGroup = [];
     let lastCoords = null;
     let watchID = null;
+    let isFollowing = true;
+    let firstFix = true;
 
-    const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([43.2389, 76.9455], 14);
+    const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([43.2389, 76.9455], 16);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     
     const userMarker = L.circleMarker([0,0], {radius: 7, color: 'white', fillColor: '#4A90E2', fillOpacity: 1, weight: 2}).addTo(map);
     const trackLine = L.polyline(track, {color: '#4A90E2', weight: 4, opacity: 0.6}).addTo(map);
 
-    // Восстановление маркеров из базы
     db.forEach(item => {
         if (item.lat) L.circleMarker([item.lat, item.lng], {radius: 4, color: '#1D1D1F'}).addTo(map);
     });
 
-    // --- Часы ---
-    setInterval(() => {
-        document.getElementById('sys-clock').innerText = new Date().toLocaleTimeString();
-    }, 1000);
+    setInterval(() => { document.getElementById('sys-clock').innerText = new Date().toLocaleTimeString(); }, 1000);
 
-    // --- GPS логика ---
+    function toggleFollow() {
+        isFollowing = !isFollowing;
+        document.getElementById('follow-btn').classList.toggle('active', isFollowing);
+        if (isFollowing && lastCoords) map.panTo(lastCoords);
+    }
+
     function forceGPSUpdate() {
         if (watchID) navigator.geolocation.clearWatch(watchID);
-        
         watchID = navigator.geolocation.watchPosition(pos => {
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
@@ -244,22 +248,24 @@
             
             userMarker.setLatLng(newPos);
             
-            if (acc < 20) {
+            if (firstFix) { map.panTo(newPos); firstFix = false; }
+            if (isFollowing) { map.panTo(newPos); }
+            
+            if (acc < 25) {
                 if (lastCoords) {
                     const d = map.distance(lastCoords, newPos);
-                    if (d > 4) { // Фильтр дрожания
+                    if (d > 4) {
                         track.push(newPos);
-                        localStorage.setItem('sc_v102_track', JSON.stringify(track));
+                        localStorage.setItem('sc_v103_track', JSON.stringify(track));
                         trackLine.setLatLngs(track);
                         calculateAnalytics();
                     }
                 }
                 lastCoords = newPos;
             }
-        }, err => alert("Ошибка GPS: " + err.message), { enableHighAccuracy: true });
+        }, err => console.log(err), { enableHighAccuracy: true });
     }
 
-    // --- Интерфейс ---
     function switchTab(index) {
         document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === index));
         document.querySelectorAll('.content-section').forEach((s, i) => s.classList.toggle('active', i === index));
@@ -274,13 +280,11 @@
         });
     });
 
-    // --- Работа с группами ---
     function addToGroup() {
         const species = document.querySelector('#species-ctrl .active').dataset.val;
         const sex = document.querySelector('#sex-ctrl .active').dataset.val;
         const age = document.querySelector('#age-ctrl .active').dataset.val;
         const tag = document.querySelector('#tag-ctrl .active').dataset.val;
-        
         currentGroup.push({ species, sex, age, tag });
         renderGroup();
     }
@@ -292,8 +296,8 @@
     }
 
     function finalizeGroup() {
-        if (currentGroup.length === 0) return alert("Сначала добавьте животных!");
-        if (!lastCoords) return alert("Нет сигнала GPS!");
+        if (currentGroup.length === 0) return alert("Добавьте животных!");
+        if (!lastCoords) return alert("Нет GPS!");
 
         const distVal = document.querySelector('#dist-ctrl .active').dataset.val;
         const habitat = document.getElementById('habitat-sel').value;
@@ -303,59 +307,37 @@
         const timeStr = now.toISOString().split('T')[0] + ' ' + now.toLocaleTimeString();
 
         currentGroup.forEach(item => {
-            db.push({
-                ...item,
-                groupID,
-                lat: lastCoords[0],
-                lng: lastCoords[1],
-                distClass: distVal,
-                habitat: habitat,
-                kAtMoment: kVal,
-                timestamp: timeStr
-            });
+            db.push({ ...item, groupID, lat: lastCoords[0], lng: lastCoords[1], distClass: distVal, habitat: habitat, kAtMoment: kVal, timestamp: timeStr });
         });
 
         L.circleMarker(lastCoords, {radius: 6, color: '#1D1D1F', fillColor: '#4A90E2', fillOpacity: 0.5}).addTo(map);
-        
         currentGroup = [];
         renderGroup();
-        localStorage.setItem('sc_v102_data', JSON.stringify(db));
+        localStorage.setItem('sc_v103_data', JSON.stringify(db));
         calculateAnalytics();
-        alert("Записано. Особей в группе: " + db.filter(d => d.groupID === groupID).length);
     }
 
-    // --- Математический блок ---
     function calculateAnalytics() {
         let pathMeters = 0;
-        for (let i = 1; i < track.length; i++) {
-            pathMeters += map.distance(track[i-1], track[i]);
-        }
-        
+        for (let i = 1; i < track.length; i++) { pathMeters += map.distance(track[i-1], track[i]); }
         document.getElementById('stat-dist').innerText = Math.round(pathMeters) + " м";
-        
         const W_km = document.getElementById('strip-width').value / 1000;
         const L_km = pathMeters / 1000;
         const K = parseFloat(document.getElementById('k-coeff').value);
         const area = L_km * W_km;
-
         if (area > 0) {
             const density = (db.length / area) * K;
             document.getElementById('stat-density').innerText = density.toFixed(2) + " ос./км²";
-            
             if (pathMeters > 1000 && db.length >= 10) {
-                document.getElementById('analysis-msg').innerHTML = 
-                    `<b style="color:var(--success)">Прогноз активен:</b><br>На основе данных по биотопу «${document.getElementById('habitat-sel').value}», плотность популяции составляет ~${Math.round(density)} особей на км².`;
+                document.getElementById('analysis-msg').innerHTML = `<b style="color:var(--success)">Прогноз активен:</b><br>Плотность: ~${Math.round(density)} ос./км².`;
             }
         }
     }
 
-    // --- Экспорт ---
     function exportCSV() {
-        if (db.length === 0) return alert("Нет данных для экспорта");
+        if (db.length === 0) return;
         let csv = "\uFEFFДата_Время;Широта;Долгота;ID_Группы;Биотоп;Вид;Пол;Возраст;Метка;Дистанция;K_акт\n";
-        db.forEach(r => {
-            csv += `${r.timestamp};${r.lat};${r.lng};${r.groupID};${r.habitat};${r.species};${r.sex};${r.age};${r.tag};${r.distClass};${r.kAtMoment}\n`;
-        });
+        db.forEach(r => { csv += `${r.timestamp};${r.lat};${r.lng};${r.groupID};${r.habitat};${r.species};${r.sex};${r.age};${r.tag};${r.distClass};${r.kAtMoment}\n`; });
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
@@ -363,16 +345,9 @@
         link.click();
     }
 
-    function resetDB() {
-        if (confirm("ВНИМАНИЕ: Это полностью удалит все записи и трек! Вы уверены?")) {
-            localStorage.clear();
-            location.reload();
-        }
-    }
+    function resetDB() { if (confirm("Удалить данные?")) { localStorage.clear(); location.reload(); } }
 
-    // Старт
     forceGPSUpdate();
-    calculateAnalytics();
 </script>
 </body>
 </html>
