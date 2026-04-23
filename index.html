@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Street Counter v1.0.3</title>
+    <title>Street Counter v1.0.4</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
@@ -25,7 +25,6 @@
 
         #map { height: 40vh; width: 100%; flex-shrink: 0; z-index: 1; position: relative; }
 
-        /* Кнопка центрирования на карте */
         .map-overlay-btn {
             position: absolute; bottom: 15px; right: 15px; z-index: 500;
             width: 44px; height: 44px; background: var(--white);
@@ -209,8 +208,8 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    let db = JSON.parse(localStorage.getItem('sc_v103_data') || '[]');
-    let track = JSON.parse(localStorage.getItem('sc_v103_track') || '[]');
+    let db = JSON.parse(localStorage.getItem('sc_v104_data') || '[]');
+    let track = JSON.parse(localStorage.getItem('sc_v104_track') || '[]');
     let currentGroup = [];
     let lastCoords = null;
     let watchID = null;
@@ -244,19 +243,28 @@
             const newPos = [lat, lng];
             
             document.getElementById('gps-acc').innerText = acc + " м";
-            document.getElementById('gps-acc').style.color = acc < 15 ? "var(--success)" : "var(--danger)";
+            
+            // Цветовая индикация теперь учитывает порог в 50м
+            if (acc <= 25) {
+                document.getElementById('gps-acc').style.color = "var(--success)";
+            } else if (acc <= 50) {
+                document.getElementById('gps-acc').style.color = "#f39c12"; // Желтый/Оранжевый для промежутка 25-50м
+            } else {
+                document.getElementById('gps-acc').style.color = "var(--danger)";
+            }
             
             userMarker.setLatLng(newPos);
             
             if (firstFix) { map.panTo(newPos); firstFix = false; }
             if (isFollowing) { map.panTo(newPos); }
             
-            if (acc < 25) {
+            // Измененный порог точности для записи трека: 50 метров
+            if (acc <= 50) {
                 if (lastCoords) {
                     const d = map.distance(lastCoords, newPos);
                     if (d > 4) {
                         track.push(newPos);
-                        localStorage.setItem('sc_v103_track', JSON.stringify(track));
+                        localStorage.setItem('sc_v104_track', JSON.stringify(track));
                         trackLine.setLatLngs(track);
                         calculateAnalytics();
                     }
@@ -313,7 +321,7 @@
         L.circleMarker(lastCoords, {radius: 6, color: '#1D1D1F', fillColor: '#4A90E2', fillOpacity: 0.5}).addTo(map);
         currentGroup = [];
         renderGroup();
-        localStorage.setItem('sc_v103_data', JSON.stringify(db));
+        localStorage.setItem('sc_v104_data', JSON.stringify(db));
         calculateAnalytics();
     }
 
