@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stray Animals Street Counter v1.0.10 (beta)</title>
+    <title>Stray Animals Street Counter v1.0.11 (beta)</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        /* Глобальный сброс для стабильной верстки */
         * { box-sizing: border-box; }
-
         :root {
             --ui-bg: #F2F2F7;
             --text-main: #1C1C1E;
@@ -42,9 +40,10 @@
 
         .rec-indicator {
             position: absolute; top: 12px; left: 12px; z-index: 500;
-            background: rgba(255, 255, 255, 0.9); padding: 5px 10px;
-            border-radius: 20px; display: none; align-items: center; gap: 8px;
+            background: rgba(255, 255, 255, 0.95); padding: 6px 12px;
+            border-radius: 20px; display: none; align-items: center; gap: 10px;
             font-size: 0.75rem; font-weight: 800; border: 1px solid var(--border);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         }
         .rec-dot { width: 8px; height: 8px; background: var(--danger); border-radius: 50%; }
         .pulse { animation: pulse-red 1.5s infinite; }
@@ -98,7 +97,10 @@
         .journal-header { padding: 12px; background: #F9F9F9; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
         .journal-body { display: none; padding: 10px; border-top: 1px solid var(--border); background: #FFF; font-size: 0.8rem; }
         .journal-body.active { display: block; }
-        .journal-item { padding: 6px 0; border-bottom: 1px solid #F2F2F7; }
+        .journal-item { padding: 10px 0; border-bottom: 1px solid #F2F2F7; display: flex; justify-content: space-between; align-items: flex-start; }
+        .journal-item:last-child { border-bottom: none; }
+
+        .btn-edit { background: var(--white); color: var(--accent); border: 1px solid var(--accent); padding: 4px 10px; border-radius: 6px; font-size: 0.65rem; font-weight: 700; }
 
         footer { text-align: center; padding: 10px; font-size: 0.65rem; color: #8E8E93; background: var(--white); border-top: 1px solid var(--border); }
 
@@ -109,20 +111,13 @@
             text-align: center; padding: 20px;
         }
 
-        /* Исправленная вёрстка настроек (v1.0.10) */
         .settings-stack { display: flex; flex-direction: column; gap: 10px; }
-        .settings-item { display: flex; flex-direction: column; gap: 4px; }
-        .settings-item small { font-size: 0.65rem; color: #8E8E93; font-weight: 700; text-transform: uppercase; }
-
-        /* Модальное окно Бэкапа */
         .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
-        .modal-box { background: var(--white); width: 85%; max-width: 380px; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-        .modal-title { font-weight: 800; font-size: 1.1rem; margin-bottom: 15px; text-align: center; }
+        .modal-box { background: var(--white); width: 85%; max-width: 380px; padding: 20px; border-radius: 20px; }
 
-        /* Индикатор памяти */
         .storage-info { margin-top: 15px; font-size: 0.65rem; color: #8E8E93; text-align: center; }
         .storage-bar { width: 100%; height: 4px; background: #E5E5EA; border-radius: 2px; margin-top: 4px; overflow: hidden; }
-        .storage-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .storage-fill { height: 100%; background: var(--accent); width: 0%; }
     </style>
 </head>
 <body>
@@ -131,6 +126,7 @@
     <div class="rec-indicator" id="rec-ui">
         <div class="rec-dot pulse" id="rec-dot"></div>
         <span id="rec-timer">00:00:00</span>
+        <span id="rec-dist" style="border-left: 1px solid var(--border); padding-left: 10px; color: var(--accent);">0.00 км</span>
     </div>
     <div id="follow-btn" class="map-overlay-btn active" onclick="toggleFollow()">◎</div>
 </div>
@@ -153,7 +149,7 @@
 
     <div class="scroll-container">
         <div id="tab-0" class="content-section active" style="position: relative;">
-            <div id="session-lock" class="no-session-overlay">Сначала начните сессию на вкладке "Сессия"</div>
+            <div id="session-lock" class="no-session-overlay">Начните сессию на вкладке "Сессия"</div>
             <div class="control-group">
                 <label class="group-label">Биотоп</label>
                 <select id="habitat-sel" onchange="updateHabitat()">
@@ -178,9 +174,7 @@
             <button class="btn-main btn-save" id="btn-final-save" onclick="finalizeGroup()" disabled>ЗАФИКСИРОВАТЬ ГРУППУ</button>
         </div>
 
-        <div id="tab-1" class="content-section">
-            <div id="journal-accordion"></div>
-        </div>
+        <div id="tab-1" class="content-section"><div id="journal-accordion"></div></div>
 
         <div id="tab-2" class="content-section">
             <div id="setup-ui">
@@ -191,38 +185,30 @@
                 <div class="stat-card" style="border-left: 6px solid var(--success);"><span class="stat-hint">Статус</span><span class="stat-val" style="color: var(--success);">УЧЁТ ИДЁТ</span><span id="session-start-time" style="font-size: 0.7rem; color: #8E8E93;"></span></div>
                 <button class="btn-main session-btn-stop" onclick="confirmEndSession()">ЗАВЕРШИТЬ СЕССИЮ</button>
             </div>
-
             <div class="control-group" style="margin-top: 20px;">
                 <label class="group-label">Настройки трансекта</label>
                 <div class="settings-stack">
-                    <div class="settings-item"><small>Ширина W (м)</small><input type="number" id="strip-width" value="50" onchange="saveGlobalSettings()"></div>
-                    <div class="settings-item"><small>Коэфф. активности K</small><input type="number" id="k-coeff" value="1.0" step="0.1" onchange="saveGlobalSettings()"></div>
+                    <div style="display: flex; flex-direction: column;"><small style="font-size: 0.6rem; color: #8E8E93;">Ширина W (м)</small><input type="number" id="strip-width" value="50" onchange="saveGlobalSettings()"></div>
+                    <div style="display: flex; flex-direction: column;"><small style="font-size: 0.6rem; color: #8E8E93;">Коэфф. K</small><input type="number" id="k-coeff" value="1.0" step="0.1" onchange="saveGlobalSettings()"></div>
                 </div>
             </div>
-
-            <div style="display: flex; gap: 8px; margin-top: 10px;">
-                <button class="btn-main" style="background: #E5E5EA; color: var(--text-main); flex: 1;" onclick="exportCSV()">CSV</button>
-                <button class="btn-main" style="background: var(--accent); color: white; flex: 1;" onclick="toggleModal('backup-modal', true)">БЭКАП</button>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <button class="btn-main" style="background: #E5E5EA; color: var(--text-main); flex: 1; min-width: 45%;" onclick="exportCSV(true)">ТЕКУЩАЯ CSV</button>
+                <button class="btn-main" style="background: #E5E5EA; color: var(--text-main); flex: 1; min-width: 45%;" onclick="exportCSV(false)">АРХИВ CSV</button>
+                <button class="btn-main" style="background: var(--accent); color: white; flex: 1;" onclick="toggleModal('backup-modal', true)">БЭКАП JSON</button>
             </div>
-
             <div style="margin-top: 30px; padding: 15px; border: 1px solid var(--danger); border-radius: 14px;">
-                <label class="group-label" style="color: var(--danger)">Сброс данных</label>
-                <div class="settings-stack">
-                    <input type="text" id="delete-confirm-input" placeholder="Введите УДАЛИТЬ" oninput="checkDeleteCode()">
-                    <button id="final-reset-btn" class="btn-main" style="background: var(--danger); color: white; opacity: 0.3; pointer-events: none; margin-top: 0;" onclick="resetApp()">УДАЛИТЬ ВСЕ СЕССИИ</button>
-                </div>
+                <label class="group-label" style="color: var(--danger)">Очистка</label>
+                <input type="text" id="delete-confirm-input" placeholder="Введите УДАЛИТЬ" oninput="checkDeleteCode()">
+                <button id="final-reset-btn" class="btn-main" style="background: var(--danger); color: white; opacity: 0.3; pointer-events: none;" onclick="resetApp()">УДАЛИТЬ ВСЁ</button>
             </div>
-
-            <div class="storage-info">
-                Память устройства: <span id="storage-text">0%</span>
-                <div class="storage-bar"><div id="storage-fill" class="storage-fill"></div></div>
-            </div>
+            <div class="storage-info">Память: <span id="storage-text">0%</span><div class="storage-bar"><div id="storage-fill" class="storage-fill"></div></div></div>
         </div>
 
         <div id="tab-3" class="content-section">
-            <div id="analysis-empty" style="text-align: center; padding: 40px; color: #8E8E93;">Начните сессию для анализа</div>
+            <div id="analysis-empty" style="text-align: center; padding: 40px; color: #8E8E93;">Нет активной сессии</div>
             <div id="analysis-content" style="display: none;">
-                <div class="stat-card"><span class="stat-hint">Текущий маршрут</span><span class="stat-val" id="stat-dist">0 м</span></div>
+                <div class="stat-card"><span class="stat-hint">Маршрут</span><span class="stat-val" id="stat-dist">0 м</span></div>
                 <div class="stat-card dog-stat"><span class="stat-hint">Собаки</span><div style="display:flex; justify-content:space-between"><div><span class="stat-hint">Учтено</span><span class="stat-val" id="stat-dog-count">0</span></div><div><span class="stat-hint">Плотность</span><span class="stat-val" id="stat-dog-density">--</span></div></div></div>
                 <div class="stat-card cat-stat"><span class="stat-hint">Кошки</span><div style="display:flex; justify-content:space-between"><div><span class="stat-hint">Учтено</span><span class="stat-val" id="stat-cat-count">0</span></div><div><span class="stat-hint">Плотность</span><span class="stat-val" id="stat-cat-density">--</span></div></div></div>
             </div>
@@ -233,25 +219,21 @@
 <div id="backup-modal" class="modal">
     <div class="modal-box">
         <div class="modal-title">Бэкап JSON</div>
-        <p style="font-size: 0.75rem; color: #636366; margin-bottom: 20px;">Замените текущую базу файлом бэкапа или сохраните текущую.</p>
-        <button class="btn-main" style="background: var(--success); color: white; margin-bottom: 10px;" onclick="downloadBackupJSON()">СКАЧАТЬ JSON</button>
-        <button class="btn-main" style="background: var(--accent); color: white;" onclick="document.getElementById('import-file').click()">ЗАГРУЗИТЬ JSON</button>
+        <button class="btn-main" style="background: var(--success); color: white;" onclick="downloadBackupJSON()">СКАЧАТЬ</button>
+        <button class="btn-main" style="background: var(--accent); color: white;" onclick="document.getElementById('import-file').click()">ЗАГРУЗИТЬ</button>
         <input type="file" id="import-file" style="display:none" accept=".json" onchange="importBackupJSON(event)">
-        <button class="btn-main" style="background: #E5E5EA; color: var(--text-main); margin-top: 15px;" onclick="toggleModal('backup-modal', false)">ОТМЕНА</button>
+        <button class="btn-main" style="background: #E5E5EA; color: var(--text-main);" onclick="toggleModal('backup-modal', false)">ОТМЕНА</button>
     </div>
 </div>
 
-<footer>Stray Animals Street Counter v1.0.10 (beta)</footer>
+<footer>Stray Animals Street Counter v1.1.1 (beta)</footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     let sessions = JSON.parse(localStorage.getItem('sc_v109_sessions') || '[]');
     let activeSession = JSON.parse(localStorage.getItem('sc_v109_active') || 'null');
     let currentGroup = [];
-    let watchID = null;
-    let wakeLock = null;
-    let isFollowing = true;
-    let lastCoords = null;
+    let watchID = null, wakeLock = null, isFollowing = true, lastCoords = null;
 
     const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([43.2389, 76.9455], 15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
@@ -269,6 +251,7 @@
             const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
             const s = String(diff % 60).padStart(2, '0');
             document.getElementById('rec-timer').innerText = `${h}:${m}:${s}`;
+            document.getElementById('rec-dist').innerText = (activeSession.distance/1000).toFixed(2) + " км";
         }
     }
     setInterval(updateClock, 1000);
@@ -280,20 +263,21 @@
         document.querySelectorAll('.content-section').forEach((s, i) => s.classList.toggle('active', i === idx));
         if (idx === 1) renderJournal();
         if (idx === 3) calculateAnalytics();
-        if (idx === 2) updateStorageIndicator();
+        updateStorageIndicator();
     }
 
     function startSession() {
         const name = document.getElementById('observer-name').value.trim();
-        if (!name) return alert("Введите ФИО учётчика!");
+        if (!name) return alert("Введите ФИО!");
         activeSession = { id: Date.now(), observer: name, startTime: Date.now(), track: [], data: [], distance: 0 };
         localStorage.setItem('sc_v109_observer', name);
         saveActiveSession(); initUI(); requestWakeLock();
     }
 
     function confirmEndSession() {
-        if (confirm("Завершить текущую сессию и сохранить в архив?")) {
+        if (confirm("Завершить сессию?")) {
             activeSession.endTime = Date.now();
+            activeSession.totalDistance = activeSession.distance; // Фиксация итога
             sessions.push(activeSession);
             localStorage.setItem('sc_v109_sessions', JSON.stringify(sessions));
             activeSession = null; localStorage.removeItem('sc_v109_active');
@@ -329,7 +313,7 @@
     }
 
     function finalizeGroup() {
-        if (!lastCoords) return alert("Ожидание координат...");
+        if (!lastCoords) return alert("Нет GPS!");
         activeSession.data.push({
             groupId: Date.now(), habitat: document.getElementById('habitat-sel').value,
             lat: lastCoords[0], lng: lastCoords[1], animals: currentGroup,
@@ -338,13 +322,30 @@
         currentGroup = []; renderGroupPreview(); saveActiveSession(); updateMapMarkers(); updateHabitat();
     }
 
+    // РЕДАКТИРОВАНИЕ
+    function editEntry(groupId) {
+        if (!activeSession) return;
+        const index = activeSession.data.findIndex(g => g.groupId === groupId);
+        if (index === -1) return;
+        
+        const g = activeSession.data[index];
+        document.getElementById('habitat-sel').value = g.habitat;
+        currentGroup = [...g.animals];
+        activeSession.data.splice(index, 1);
+        
+        switchTab(0);
+        renderGroupPreview();
+        updateHabitat();
+        saveActiveSession();
+        updateMapMarkers();
+    }
+
     function initGPS() {
         watchID = navigator.geolocation.watchPosition(pos => {
             const acc = Math.round(pos.coords.accuracy);
             lastCoords = [pos.coords.latitude, pos.coords.longitude];
-            const badge = document.getElementById('gps-acc');
-            badge.innerText = acc + " м";
-            badge.style.background = acc <= 30 ? "var(--success)" : (acc <= 50 ? "var(--warning)" : "var(--danger)");
+            document.getElementById('gps-acc').innerText = acc + " м";
+            document.getElementById('gps-acc').style.background = acc <= 30 ? "var(--success)" : (acc <= 50 ? "var(--warning)" : "var(--danger)");
             userMarker.setLatLng(lastCoords);
             if (isFollowing) map.panTo(lastCoords);
             if (activeSession && acc <= 50) {
@@ -362,7 +363,7 @@
         const container = document.getElementById('journal-accordion');
         container.innerHTML = "";
         const all = activeSession ? [activeSession, ...[...sessions].reverse()] : [...sessions].reverse();
-        if (all.length === 0) return container.innerHTML = "<center style='padding:50px'>Журнал пуст</center>";
+        if (all.length === 0) return container.innerHTML = "<center style='padding:50px'>Пусто</center>";
         all.forEach(sess => {
             const isCurr = activeSession && sess.id === activeSession.id;
             const div = document.createElement('div');
@@ -370,21 +371,26 @@
             div.innerHTML = `
                 <div class="journal-header" onclick="this.nextElementSibling.classList.toggle('active')">
                     <div><b style="${isCurr ? 'color:var(--success)' : ''}">${isCurr ? '● ТЕКУЩИЙ' : new Date(sess.id).toLocaleDateString()}</b><br><small>${sess.observer}</small></div>
-                    <span>${sess.data.length} групп ▾</span>
+                    <span>${sess.data.length} гр. ▾</span>
                 </div>
                 <div class="journal-body">
-                    ${sess.data.map(g => `<div class="journal-item"><b>${g.habitat}</b> | ${g.animals.length} ос.<br><small>${g.animals.map(a => a.species).join(', ')}</small></div>`).reverse().join('')}
+                    ${sess.data.map(g => `
+                        <div class="journal-item">
+                            <div><b>${g.habitat}</b> | ${g.animals.length} ос.<br><small>${g.animals.map(a => a.species).join(', ')}</small></div>
+                            ${isCurr ? `<button class="btn-edit" onclick="editEntry(${g.groupId})">ПРАВКА</button>` : ''}
+                        </div>
+                    `).reverse().join('')}
                 </div>`;
             container.appendChild(div);
         });
     }
 
     function calculateAnalytics() {
-        const empty = document.getElementById('analysis-empty'), content = document.getElementById('analysis-content');
-        if (!activeSession) { empty.style.display = 'block'; content.style.display = 'none'; return; }
-        empty.style.display = 'none'; content.style.display = 'block';
+        if (!activeSession) return;
+        document.getElementById('analysis-content').style.display = 'block';
+        document.getElementById('analysis-empty').style.display = 'none';
         const d = activeSession.distance;
-        document.getElementById('stat-dist').innerText = d > 1000 ? (d/1000).toFixed(2) + " км" : Math.round(d) + " м";
+        document.getElementById('stat-dist').innerText = (d/1000).toFixed(2) + " км";
         let dogs = 0, cats = 0;
         activeSession.data.forEach(g => g.animals.forEach(a => { if(a.species==='Собака') dogs++; else cats++; }));
         document.getElementById('stat-dog-count').innerText = dogs;
@@ -399,7 +405,7 @@
     function toggleModal(id, show) { document.getElementById(id).style.display = show ? 'flex' : 'none'; }
 
     function downloadBackupJSON() {
-        const data = { version: "1.0.10", sessions, active: activeSession, observer: localStorage.getItem('sc_v109_observer') };
+        const data = { sessions, active: activeSession };
         const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); 
         a.download = `stray_backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
@@ -412,15 +418,13 @@
         reader.onload = e => {
             try {
                 const data = JSON.parse(e.target.result);
-                if (data.sessions && confirm("Это ПЕРЕЗАПИШЕТ все текущие данные. Продолжить?")) {
-                    sessions = data.sessions;
-                    activeSession = data.active || null;
+                if (data.sessions) {
+                    sessions = data.sessions; activeSession = data.active || null;
                     localStorage.setItem('sc_v109_sessions', JSON.stringify(sessions));
                     if (activeSession) localStorage.setItem('sc_v109_active', JSON.stringify(activeSession));
-                    else localStorage.removeItem('sc_v109_active');
                     location.reload();
-                } else if (!data.sessions) alert("Неверный формат бэкапа!");
-            } catch (err) { alert("Ошибка чтения файла!"); }
+                }
+            } catch (err) { alert("Ошибка!"); }
         };
         reader.readAsText(file);
     }
@@ -432,12 +436,18 @@
         document.getElementById('storage-fill').style.width = percent + "%";
     }
 
-    function exportCSV() {
-        let csv = "\uFEFFObserver;Date;Time;Habitat;Species;Sex;Age;Lat;Lng;K;W\n";
-        [...sessions, ...(activeSession ? [activeSession] : [])].forEach(s => s.data.forEach(g => g.animals.forEach(a => {
-            csv += `${s.observer};${new Date(s.id).toLocaleDateString()};${a.time};${g.habitat};${a.species};${a.sex};${a.age};${g.lat};${g.lng};${g.k};${g.w}\n`;
-        })));
-        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'stray_export.csv'; a.click();
+    function exportCSV(onlyActive) {
+        let csv = "\uFEFFObserver;Date;Time;Habitat;Species;Sex;Age;Lat;Lng;K;W;Session_Dist\n";
+        const target = onlyActive ? (activeSession ? [activeSession] : []) : [...sessions, ...(activeSession ? [activeSession] : [])];
+        target.forEach(s => {
+            s.data.forEach(g => g.animals.forEach(a => {
+                csv += `${s.observer};${new Date(s.id).toLocaleDateString()};${a.time};${g.habitat};${a.species};${a.sex};${a.age};${g.lat};${g.lng};${g.k};${g.w};${(s.distance||s.totalDistance||0).toFixed(2)}\n`;
+            }));
+            // Итоговая строка сессии
+            csv += `TOTAL;${new Date(s.id).toLocaleDateString()};;;;;;;;;;${(s.distance||s.totalDistance||0).toFixed(2)}\n`;
+        });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); 
+        a.download = onlyActive ? 'current_session.csv' : 'full_archive.csv'; a.click();
     }
 
     function initUI() {
@@ -451,7 +461,7 @@
             document.getElementById('session-lock').style.display = 'flex'; document.getElementById('rec-ui').style.display = 'none';
             document.getElementById('observer-name').value = localStorage.getItem('sc_v109_observer') || "";
         }
-        updateMapMarkers(); loadHabitat(); updateStorageIndicator();
+        updateMapMarkers(); loadHabitat();
     }
 
     function loadHabitat() { const h = localStorage.getItem('sc_v109_last_hab'); if(h) document.getElementById('habitat-sel').value = h; updateHabitat(); }
