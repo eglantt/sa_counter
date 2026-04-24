@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Street Counter v1.0.4</title>
+    <title>Street Counter v1.0.6</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
-            --ui-bg: #F5F5F7;
-            --text-main: #1D1D1F;
-            --accent: #4A90E2;
-            --border: #D2D2D7;
-            --white: #ffffff;
-            --danger: #c0392b;
-            --success: #27ae60;
+            --ui-bg: #F2F2F7;
+            --text-main: #1C1C1E;
+            --accent: #007AFF;
+            --border: #C6C6C8;
+            --white: #FFFFFF;
+            --danger: #FF3B30;
+            --success: #34C759;
         }
 
         body { 
@@ -23,83 +23,98 @@
             height: 100dvh; overflow: hidden;
         }
 
-        #map { height: 40vh; width: 100%; flex-shrink: 0; z-index: 1; position: relative; }
+        #map { height: 35vh; width: 100%; flex-shrink: 0; z-index: 1; position: relative; border-bottom: 1px solid var(--border); }
 
         .map-overlay-btn {
-            position: absolute; bottom: 15px; right: 15px; z-index: 500;
+            position: absolute; bottom: 12px; right: 12px; z-index: 500;
             width: 44px; height: 44px; background: var(--white);
-            border: 2px solid rgba(0,0,0,0.2); border-radius: 8px;
+            border: 1px solid var(--border); border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-size: 1.4rem; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         .map-overlay-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
 
         .service-bar {
             background: var(--white); border-bottom: 1px solid var(--border);
-            padding: 8px 15px; display: flex; justify-content: space-between;
-            align-items: center; z-index: 11; font-size: 0.75rem; font-weight: 600;
+            padding: 10px 15px; display: flex; justify-content: space-between;
+            align-items: center; z-index: 11; font-size: 0.8rem; font-weight: 600;
         }
 
-        .gps-status { display: flex; align-items: center; gap: 8px; }
-        .accuracy-badge { padding: 2px 6px; border-radius: 4px; background: #eee; }
+        .gps-status { display: flex; align-items: center; gap: 10px; }
+        .accuracy-badge { padding: 3px 8px; border-radius: 6px; background: #E5E5EA; font-variant-numeric: tabular-nums; }
         .btn-gps { 
             background: var(--accent); color: white; border: none; 
-            padding: 5px 10px; border-radius: 6px; font-size: 0.7rem; 
+            padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700;
         }
 
         .sheet {
             flex-grow: 1; background: var(--white);
             display: flex; flex-direction: column;
             overflow: hidden; z-index: 10;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
         }
 
-        .tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .tabs { display: flex; background: var(--white); border-bottom: 1px solid var(--border); flex-shrink: 0; }
         .tab { 
-            flex: 1; padding: 14px; text-align: center; font-weight: 600; 
-            font-size: 0.8rem; color: #86868b; cursor: pointer;
+            flex: 1; padding: 14px 5px; text-align: center; font-weight: 600; 
+            font-size: 0.75rem; color: #8E8E93; cursor: pointer; text-transform: uppercase;
         }
-        .tab.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+        .tab.active { color: var(--accent); border-bottom: 3px solid var(--accent); }
 
         .scroll-container {
             flex-grow: 1; overflow-y: auto; 
             -webkit-overflow-scrolling: touch;
-            padding: 15px; padding-bottom: 160px;
+            padding: 15px; padding-bottom: 140px;
         }
 
         .content-section { display: none; }
         .content-section.active { display: block; }
 
-        .control-group { margin-bottom: 18px; }
-        .group-label { font-size: 0.7rem; font-weight: 700; color: #86868b; text-transform: uppercase; margin-bottom: 8px; }
+        .control-group { margin-bottom: 20px; }
+        .group-label { font-size: 0.75rem; font-weight: 700; color: #636366; text-transform: uppercase; margin-bottom: 8px; display: block; }
         
-        .segmented-control { display: flex; background: #EEE; border-radius: 8px; padding: 2px; }
+        .segmented-control { display: flex; background: #E3E3E8; border-radius: 10px; padding: 2px; gap: 2px; }
         .segment {
-            flex: 1; padding: 10px 5px; text-align: center; font-size: 0.8rem;
-            border-radius: 6px; cursor: pointer; transition: 0.1s;
+            flex: 1; padding: 12px 4px; text-align: center; font-size: 0.85rem;
+            border-radius: 8px; cursor: pointer; transition: 0.2s; color: #48484A;
         }
-        .segment.active { background: var(--white); box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-weight: 600; }
+        .segment.active { background: var(--white); box-shadow: 0 2px 4px rgba(0,0,0,0.12); font-weight: 700; color: var(--text-main); }
 
         .btn-main {
-            width: 100%; padding: 16px; border: none; border-radius: 12px;
+            width: 100%; padding: 18px; border: none; border-radius: 14px;
             font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 12px;
         }
-        .btn-add { background: #E8F2FF; color: var(--accent); border: 1px solid var(--accent); }
-        .btn-save { background: var(--accent); color: white; }
+        .btn-add { background: #E8F2FF; color: var(--accent); border: 1px solid rgba(0,122,255,0.3); }
+        .btn-save { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(0,122,255,0.3); }
 
         .group-preview {
-            background: #F9F9F9; border: 1px dashed var(--border); border-radius: 8px;
-            padding: 12px; min-height: 40px; margin-top: 12px; font-size: 0.85rem; line-height: 1.4;
+            background: #F2F2F7; border: 1px dashed var(--border); border-radius: 10px;
+            padding: 14px; min-height: 40px; margin-top: 15px; font-size: 0.9rem; line-height: 1.5;
         }
 
-        .stat-card { background: var(--ui-bg); padding: 15px; border-radius: 12px; margin-bottom: 12px; }
-        .stat-val { font-size: 1.3rem; font-weight: 700; display: block; margin-top: 4px; }
-        .stat-hint { font-size: 0.7rem; color: #86868b; text-transform: uppercase; }
+        .stat-card { background: #F2F2F7; padding: 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid var(--border); }
+        .stat-val { font-size: 1.4rem; font-weight: 800; display: block; margin-top: 4px; color: var(--accent); }
+        .stat-hint { font-size: 0.7rem; color: #636366; text-transform: uppercase; letter-spacing: 0.5px; }
 
         select, input {
-            width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border);
-            font-size: 1rem; box-sizing: border-box; background: var(--white);
+            width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border);
+            font-size: 1rem; box-sizing: border-box; background: var(--white); color: var(--text-main);
         }
+
+        .journal-card {
+            background: var(--white); border: 1px solid var(--border); border-radius: 12px;
+            margin-bottom: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .journal-meta { font-size: 0.7rem; color: #8E8E93; margin-top: 4px; }
+        .btn-del-entry { color: var(--danger); font-size: 1.2rem; padding: 10px; cursor: pointer; }
+
+        /* Опасная зона */
+        .danger-zone {
+            margin-top: 50px; padding: 20px; border: 2px solid #FF3B3022; border-radius: 16px; background: #FFF2F2;
+        }
+        .btn-danger-confirm {
+            background: var(--danger); color: white; opacity: 0.3; pointer-events: none;
+        }
+        .btn-danger-confirm.active { opacity: 1; pointer-events: auto; }
     </style>
 </head>
 <body>
@@ -111,96 +126,111 @@
 <div class="service-bar">
     <div class="gps-status">
         <button class="btn-gps" onclick="forceGPSUpdate()">ОБНОВИТЬ GPS</button>
-        <span class="accuracy-badge" id="gps-acc">Поиск...</span>
+        <span class="accuracy-badge" id="gps-acc">0 м</span>
     </div>
     <div id="sys-clock">00:00:00</div>
 </div>
 
 <div class="sheet">
     <div class="tabs">
-        <div class="tab active" onclick="switchTab(0)">УЧЁТ</div>
-        <div class="tab" onclick="switchTab(1)">СЕССИЯ</div>
-        <div class="tab" onclick="switchTab(2)">АНАЛИТИКА</div>
+        <div class="tab active" onclick="switchTab(0)">Учёт</div>
+        <div class="tab" onclick="switchTab(1)">Журнал</div>
+        <div class="tab" onclick="switchTab(2)">Сессия</div>
+        <div class="tab" onclick="switchTab(3)">Анализ</div>
     </div>
 
     <div class="scroll-container">
         <div id="tab-0" class="content-section active">
+            <div class="control-group">
+                <label class="group-label">Текущий биотоп</label>
+                <select id="habitat-sel" onchange="saveSettings()">
+                    <option value="Промзона">Промзона</option>
+                    <option value="Свалка">Свалка</option>
+                    <option value="Пустырь">Пустырь</option>
+                    <option value="Частный сектор">Частный сектор</option>
+                    <option value="Жилой массив (МКД)">Многоэтажная застройка</option>
+                    <option value="Центр города">Центр города</option>
+                    <option value="Парк / Сквер">Парк / Сквер</option>
+                </select>
+            </div>
+
             <div class="control-group">
                 <div class="segmented-control" id="species-ctrl">
                     <div class="segment active" data-val="Собака">СОБАКА</div>
                     <div class="segment" data-val="Кошка">КОШКА</div>
                 </div>
             </div>
-            <div class="control-group">
-                <div class="group-label">Пол / Возраст</div>
-                <div style="display: flex; gap: 8px;">
-                    <div class="segmented-control" id="sex-ctrl" style="flex: 1.2;">
+
+            <div class="control-group" style="display: flex; gap: 8px;">
+                <div style="flex: 1;">
+                    <label class="group-label">Пол</label>
+                    <div class="segmented-control" id="sex-ctrl">
                         <div class="segment" data-val="♂">♂</div>
                         <div class="segment" data-val="♀">♀</div>
                         <div class="segment active" data-val="⚬">⚬</div>
                     </div>
-                    <div class="segmented-control" id="age-ctrl" style="flex: 2;">
+                </div>
+                <div style="flex: 1.5;">
+                    <label class="group-label">Возраст</label>
+                    <div class="segmented-control" id="age-ctrl">
                         <div class="segment" data-val="Juv">Juv</div>
                         <div class="segment" data-val="Sub">Sub</div>
                         <div class="segment active" data-val="Ad">Ad</div>
                     </div>
                 </div>
             </div>
+
             <div class="control-group">
-                <div class="group-label">Метки / Тип</div>
+                <label class="group-label">Метка</label>
                 <div class="segmented-control" id="tag-ctrl">
-                    <div class="segment active" data-val="Нет">НЕТ</div>
-                    <div class="segment" data-val="Бирка">БИРКА</div>
-                    <div class="segment" data-val="Ошейник">ОШЕЙНИК</div>
-                    <div class="segment" data-val="Порода">ПОРОДА</div>
+                    <div class="segment active" data-val="Нет">Нет</div>
+                    <div class="segment" data-val="Бирка">Бирка</div>
+                    <div class="segment" data-val="Ошейник">Ошейник</div>
+                    <div class="segment" data-val="Порода">Порода</div>
                 </div>
             </div>
-            <div class="control-group">
-                <div class="group-label">Дистанция до центра группы (м)</div>
-                <div class="segmented-control" id="dist-ctrl">
-                    <div class="segment active" data-val="5">0-5м</div>
-                    <div class="segment" data-val="10">5-10м</div>
-                    <div class="segment" data-val="25">10м+</div>
-                </div>
-            </div>
+
             <button class="btn-main btn-add" onclick="addToGroup()">ВКЛЮЧИТЬ В ГРУППУ</button>
-            <div class="group-preview" id="group-list">Группа не сформирована</div>
+            <div class="group-preview" id="group-list">Группа пуста</div>
             <button class="btn-main btn-save" onclick="finalizeGroup()">ЗАФИКСИРОВАТЬ ГРУППУ</button>
         </div>
 
         <div id="tab-1" class="content-section">
-            <div class="control-group">
-                <div class="group-label">Тип биотопа (Местность)</div>
-                <select id="habitat-sel">
-                    <option value="Промзона">Промзона / Свалки</option>
-                    <option value="Частный сектор">Частный сектор</option>
-                    <option value="Жилой массив">Жилой массив (МКД)</option>
-                    <option value="Центр">Центр / Парки</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <div class="group-label">Ширина полосы (W) в метрах</div>
-                <input type="number" id="strip-width" value="50">
-            </div>
-            <div class="control-group">
-                <div class="group-label">Коэффициент активности (K)</div>
-                <input type="number" id="k-coeff" value="1.0" step="0.1">
-            </div>
-            <button class="btn-main" style="background: var(--success); color: white;" onclick="exportCSV()">СКАЧАТЬ ОТЧЁТ (CSV)</button>
-            <button class="btn-main" style="background: var(--danger); color: white; margin-top: 30px;" onclick="resetDB()">ОЧИСТИТЬ ВСЕ ДАННЫЕ</button>
+            <div id="journal-container"></div>
         </div>
 
         <div id="tab-2" class="content-section">
+            <div class="control-group">
+                <label class="group-label">Ширина полосы обзора (W), метры</label>
+                <input type="number" id="strip-width" value="50" onchange="saveSettings()">
+            </div>
+            <div class="control-group">
+                <label class="group-label">Коэффициент активности (K)</label>
+                <input type="number" id="k-coeff" value="1.0" step="0.1" onchange="saveSettings()">
+            </div>
+            
+            <button class="btn-main" style="background: var(--success); color: white;" onclick="exportCSV()">ЭКСПОРТ В CSV (Excel)</button>
+            
+            <div class="danger-zone">
+                <label class="group-label" style="color: var(--danger)">ОПАСНАЯ ЗОНА: ПОЛНЫЙ СБРОС</label>
+                <p style="font-size: 0.75rem; color: #636366; margin-bottom: 12px;">Это действие безвозвратно удалит все данные и треки за все дни работы.</p>
+                <input type="text" id="delete-confirm-input" placeholder="Введите слово УДАЛИТЬ" oninput="checkDeleteCode()">
+                <button id="final-reset-btn" class="btn-main btn-danger-confirm" onclick="resetDB()">ПОДТВЕРДИТЬ УДАЛЕНИЕ БАЗЫ</button>
+            </div>
+        </div>
+
+        <div id="tab-3" class="content-section">
             <div class="stat-card">
-                <span class="stat-hint">Маршрут пройдено</span>
+                <span class="stat-hint">Пройдено по маршруту</span>
                 <span class="stat-val" id="stat-dist">0 м</span>
             </div>
             <div class="stat-card">
-                <span class="stat-hint">Текущая плотность</span>
-                <span class="stat-val" id="stat-density">-- ос./км²</span>
+                <span class="stat-hint">Всего учтено особей</span>
+                <span class="stat-val" id="stat-count">0</span>
             </div>
-            <div id="analysis-msg" style="font-size: 0.85rem; color: #86868b; line-height: 1.5; padding: 10px;">
-                Порог прогноза: 1000м пути и 10 объектов.
+            <div class="stat-card">
+                <span class="stat-hint">Расчетная плотность</span>
+                <span class="stat-val" id="stat-density">-- ос./км²</span>
             </div>
         </div>
     </div>
@@ -208,30 +238,48 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    let db = JSON.parse(localStorage.getItem('sc_v104_data') || '[]');
-    let track = JSON.parse(localStorage.getItem('sc_v104_track') || '[]');
-    let currentGroup = [];
+    let db = JSON.parse(localStorage.getItem('sc_v106_db') || '[]');
+    let track = JSON.parse(localStorage.getItem('sc_v106_track') || '[]');
+    let currentGroup = JSON.parse(localStorage.getItem('sc_v106_temp_group') || '[]');
     let lastCoords = null;
     let watchID = null;
     let isFollowing = true;
-    let firstFix = true;
+    let mapMarkers = [];
 
-    const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([43.2389, 76.9455], 16);
+    const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([43.2389, 76.9455], 15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-    
-    const userMarker = L.circleMarker([0,0], {radius: 7, color: 'white', fillColor: '#4A90E2', fillOpacity: 1, weight: 2}).addTo(map);
-    const trackLine = L.polyline(track, {color: '#4A90E2', weight: 4, opacity: 0.6}).addTo(map);
+    const userMarker = L.circleMarker([0,0], {radius: 7, color: 'white', fillColor: '#007AFF', fillOpacity: 1, weight: 2}).addTo(map);
+    const trackLine = L.polyline(track, {color: '#007AFF', weight: 4, opacity: 0.5}).addTo(map);
 
-    db.forEach(item => {
-        if (item.lat) L.circleMarker([item.lat, item.lng], {radius: 4, color: '#1D1D1F'}).addTo(map);
-    });
+    function saveSettings() {
+        localStorage.setItem('sc_v106_hab', document.getElementById('habitat-sel').value);
+        localStorage.setItem('sc_v106_w', document.getElementById('strip-width').value);
+        localStorage.setItem('sc_v106_k', document.getElementById('k-coeff').value);
+        calculateAnalytics();
+    }
+
+    function loadSettings() {
+        if(localStorage.getItem('sc_v106_hab')) document.getElementById('habitat-sel').value = localStorage.getItem('sc_v106_hab');
+        if(localStorage.getItem('sc_v106_w')) document.getElementById('strip-width').value = localStorage.getItem('sc_v106_w');
+        if(localStorage.getItem('sc_v106_k')) document.getElementById('k-coeff').value = localStorage.getItem('sc_v106_k');
+        renderGroupPreview();
+    }
+
+    function initMarkers() {
+        mapMarkers.forEach(m => map.removeLayer(m));
+        mapMarkers = [];
+        db.forEach(item => {
+            const m = L.circleMarker([item.lat, item.lng], {radius: 5, color: '#1C1C1E', weight: 1, fillOpacity: 0.8});
+            m.addTo(map);
+            mapMarkers.push(m);
+        });
+    }
 
     setInterval(() => { document.getElementById('sys-clock').innerText = new Date().toLocaleTimeString(); }, 1000);
 
     function toggleFollow() {
         isFollowing = !isFollowing;
         document.getElementById('follow-btn').classList.toggle('active', isFollowing);
-        if (isFollowing && lastCoords) map.panTo(lastCoords);
     }
 
     function forceGPSUpdate() {
@@ -240,122 +288,144 @@
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
             const acc = Math.round(pos.coords.accuracy);
-            const newPos = [lat, lng];
+            lastCoords = [lat, lng];
             
             document.getElementById('gps-acc').innerText = acc + " м";
+            document.getElementById('gps-acc').style.color = acc <= 25 ? "var(--success)" : (acc <= 50 ? "#FF9500" : "var(--danger)");
             
-            // Цветовая индикация теперь учитывает порог в 50м
-            if (acc <= 25) {
-                document.getElementById('gps-acc').style.color = "var(--success)";
-            } else if (acc <= 50) {
-                document.getElementById('gps-acc').style.color = "#f39c12"; // Желтый/Оранжевый для промежутка 25-50м
-            } else {
-                document.getElementById('gps-acc').style.color = "var(--danger)";
-            }
+            userMarker.setLatLng(lastCoords);
+            if (isFollowing) map.panTo(lastCoords);
             
-            userMarker.setLatLng(newPos);
-            
-            if (firstFix) { map.panTo(newPos); firstFix = false; }
-            if (isFollowing) { map.panTo(newPos); }
-            
-            // Измененный порог точности для записи трека: 50 метров
             if (acc <= 50) {
-                if (lastCoords) {
-                    const d = map.distance(lastCoords, newPos);
-                    if (d > 4) {
-                        track.push(newPos);
-                        localStorage.setItem('sc_v104_track', JSON.stringify(track));
-                        trackLine.setLatLngs(track);
-                        calculateAnalytics();
-                    }
+                if (track.length === 0 || map.distance(track[track.length-1], lastCoords) > 5) {
+                    track.push(lastCoords);
+                    localStorage.setItem('sc_v106_track', JSON.stringify(track));
+                    trackLine.setLatLngs(track);
+                    calculateAnalytics();
                 }
-                lastCoords = newPos;
             }
-        }, err => console.log(err), { enableHighAccuracy: true });
+        }, null, { enableHighAccuracy: true });
     }
 
-    function switchTab(index) {
-        document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === index));
-        document.querySelectorAll('.content-section').forEach((s, i) => s.classList.toggle('active', i === index));
+    function switchTab(idx) {
+        document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+        document.querySelectorAll('.content-section').forEach((s, i) => s.classList.toggle('active', i === idx));
+        if (idx === 1) renderJournal();
     }
 
-    document.querySelectorAll('.segmented-control').forEach(ctrl => {
-        ctrl.addEventListener('click', e => {
-            if (e.target.classList.contains('segment')) {
-                ctrl.querySelectorAll('.segment').forEach(s => s.classList.remove('active'));
-                e.target.classList.add('active');
-            }
-        });
+    document.querySelectorAll('.segmented-control .segment').forEach(s => {
+        s.onclick = function() {
+            this.parentNode.querySelectorAll('.segment').forEach(sib => sib.classList.remove('active'));
+            this.classList.add('active');
+        }
     });
 
     function addToGroup() {
-        const species = document.querySelector('#species-ctrl .active').dataset.val;
-        const sex = document.querySelector('#sex-ctrl .active').dataset.val;
-        const age = document.querySelector('#age-ctrl .active').dataset.val;
-        const tag = document.querySelector('#tag-ctrl .active').dataset.val;
-        currentGroup.push({ species, sex, age, tag });
-        renderGroup();
+        currentGroup.push({
+            species: document.querySelector('#species-ctrl .active').dataset.val,
+            sex: document.querySelector('#sex-ctrl .active').dataset.val,
+            age: document.querySelector('#age-ctrl .active').dataset.val,
+            tag: document.querySelector('#tag-ctrl .active').dataset.val
+        });
+        localStorage.setItem('sc_v106_temp_group', JSON.stringify(currentGroup));
+        renderGroupPreview();
     }
 
-    function renderGroup() {
+    function renderGroupPreview() {
         const list = document.getElementById('group-list');
-        list.innerHTML = currentGroup.length === 0 ? "Группа не сформирована" : 
+        list.innerHTML = currentGroup.length === 0 ? "Группа пуста" : 
             currentGroup.map(a => `<b>${a.species}</b> ${a.sex} [${a.age}]`).join(' | ');
     }
 
     function finalizeGroup() {
-        if (currentGroup.length === 0) return alert("Добавьте животных!");
-        if (!lastCoords) return alert("Нет GPS!");
-
-        const distVal = document.querySelector('#dist-ctrl .active').dataset.val;
-        const habitat = document.getElementById('habitat-sel').value;
-        const kVal = document.getElementById('k-coeff').value;
+        if (currentGroup.length === 0 || !lastCoords) return alert("Нет данных или GPS!");
+        const hab = document.getElementById('habitat-sel').value;
+        const k = document.getElementById('k-coeff').value;
         const groupID = Date.now();
-        const now = new Date();
-        const timeStr = now.toISOString().split('T')[0] + ' ' + now.toLocaleTimeString();
+        const time = new Date().toLocaleString();
 
         currentGroup.forEach(item => {
-            db.push({ ...item, groupID, lat: lastCoords[0], lng: lastCoords[1], distClass: distVal, habitat: habitat, kAtMoment: kVal, timestamp: timeStr });
+            db.push({ ...item, groupID, hab, k, lat: lastCoords[0], lng: lastCoords[1], time });
         });
 
-        L.circleMarker(lastCoords, {radius: 6, color: '#1D1D1F', fillColor: '#4A90E2', fillOpacity: 0.5}).addTo(map);
         currentGroup = [];
-        renderGroup();
-        localStorage.setItem('sc_v104_data', JSON.stringify(db));
+        localStorage.setItem('sc_v106_temp_group', '[]');
+        localStorage.setItem('sc_v106_db', JSON.stringify(db));
+        renderGroupPreview();
+        initMarkers();
         calculateAnalytics();
     }
 
+    function renderJournal() {
+        const container = document.getElementById('journal-container');
+        if (db.length === 0) return container.innerHTML = '<center style="padding:40px; color:#8E8E93">Журнал пуст</center>';
+        container.innerHTML = db.map((item, i) => `
+            <div class="journal-card">
+                <div>
+                    <b>${item.species}</b> (${item.sex}, ${item.age})<br>
+                    <span class="journal-meta">${item.hab} | ${item.time.split(',')[1]}</span>
+                </div>
+                <div class="btn-del-entry" onclick="deleteEntry(${i})">✕</div>
+            </div>
+        `).reverse().join('');
+    }
+
+    function deleteEntry(i) {
+        if (confirm("Вы действительно хотите удалить эту конкретную запись из журнала?")) {
+            db.splice(db.length - 1 - i, 1);
+            localStorage.setItem('sc_v106_db', JSON.stringify(db));
+            renderJournal();
+            initMarkers();
+            calculateAnalytics();
+        }
+    }
+
     function calculateAnalytics() {
-        let pathMeters = 0;
-        for (let i = 1; i < track.length; i++) { pathMeters += map.distance(track[i-1], track[i]); }
-        document.getElementById('stat-dist').innerText = Math.round(pathMeters) + " м";
-        const W_km = document.getElementById('strip-width').value / 1000;
-        const L_km = pathMeters / 1000;
-        const K = parseFloat(document.getElementById('k-coeff').value);
-        const area = L_km * W_km;
-        if (area > 0) {
-            const density = (db.length / area) * K;
-            document.getElementById('stat-density').innerText = density.toFixed(2) + " ос./км²";
-            if (pathMeters > 1000 && db.length >= 10) {
-                document.getElementById('analysis-msg').innerHTML = `<b style="color:var(--success)">Прогноз активен:</b><br>Плотность: ~${Math.round(density)} ос./км².`;
-            }
+        let d = 0;
+        for (let i = 1; i < track.length; i++) d += map.distance(track[i-1], track[i]);
+        document.getElementById('stat-dist').innerText = Math.round(d) + " м";
+        document.getElementById('stat-count').innerText = db.length;
+        
+        const w = document.getElementById('strip-width').value / 1000;
+        const l = d / 1000;
+        const k = document.getElementById('k-coeff').value;
+        if (l > 0 && w > 0) {
+            const dens = (db.length / (l * w)) * k;
+            document.getElementById('stat-density').innerText = dens.toFixed(2) + " ос./км²";
         }
     }
 
     function exportCSV() {
-        if (db.length === 0) return;
-        let csv = "\uFEFFДата_Время;Широта;Долгота;ID_Группы;Биотоп;Вид;Пол;Возраст;Метка;Дистанция;K_акт\n";
-        db.forEach(r => { csv += `${r.timestamp};${r.lat};${r.lng};${r.groupID};${r.habitat};${r.species};${r.sex};${r.age};${r.tag};${r.distClass};${r.kAtMoment}\n`; });
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        let csv = "\uFEFFДата_Время;Широта;Долгота;ID;Биотоп;Вид;Пол;Возраст;Метка;K\n";
+        db.forEach(r => { csv += `${r.time};${r.lat};${r.lng};${r.groupID};${r.hab};${r.species};${r.sex};${r.age};${r.tag};${r.k}\n`; });
         const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `street_count_${new Date().toLocaleDateString()}.csv`;
+        link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+        link.download = `count_${new Date().toLocaleDateString()}.csv`;
         link.click();
     }
 
-    function resetDB() { if (confirm("Удалить данные?")) { localStorage.clear(); location.reload(); } }
+    // ЛОГИКА ДВОЙНОЙ ЗАЩИТЫ
+    function checkDeleteCode() {
+        const input = document.getElementById('delete-confirm-input');
+        const btn = document.getElementById('final-reset-btn');
+        if (input.value === "УДАЛИТЬ") {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    }
 
+    function resetDB() { 
+        if (confirm("ВНИМАНИЕ! Вы подтверждаете полное и безвозвратное удаление ВСЕХ накопленных данных за все дни работы?")) { 
+            localStorage.clear(); 
+            location.reload(); 
+        } 
+    }
+
+    loadSettings();
     forceGPSUpdate();
+    initMarkers();
+    calculateAnalytics();
 </script>
 </body>
 </html>
