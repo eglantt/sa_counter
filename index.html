@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stray Animals Street Counter v1.1.3 (beta)</title>
+    <title>Stray Animals Street Counter v1.1.4 (beta)</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { box-sizing: border-box; }
@@ -90,7 +90,6 @@
 
         select, input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border); font-size: 0.95rem; background: var(--white); transition: border-color 0.3s; }
         
-        /* Анимация ошибки биотопа */
         .habitat-error { border-color: var(--danger) !important; animation: shake 0.4s; border-width: 2px !important; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
         .error-hint { color: var(--danger); font-size: 0.7rem; font-weight: 700; margin-top: 5px; display: none; text-align: center; }
@@ -120,7 +119,6 @@
         .storage-bar { width: 100%; height: 4px; background: #E5E5EA; border-radius: 2px; margin-top: 4px; overflow: hidden; }
         .storage-fill { height: 100%; background: var(--accent); width: 0%; }
 
-        /* Таблица анализа */
         .analysis-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.75rem; }
         .analysis-table th { text-align: left; color: #8E8E93; padding: 8px 4px; border-bottom: 1px solid var(--border); }
         .analysis-table td { padding: 8px 4px; border-bottom: 1px solid #F2F2F7; }
@@ -195,8 +193,8 @@
             <div class="control-group" style="margin-top: 20px;">
                 <label class="group-label">Настройки трансекта</label>
                 <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <div><small style="font-size: 0.6rem; color: #8E8E93; text-transform: uppercase;">Ширина W (м)</small><input type="number" id="strip-width" value="50" onchange="saveGlobalSettings()"></div>
-                    <div><small style="font-size: 0.6rem; color: #8E8E93; text-transform: uppercase;">Коэфф. K</small><input type="number" id="k-coeff" value="1.0" step="0.1" onchange="saveGlobalSettings()"></div>
+                    <div><small style="font-size: 0.65rem; color: #8E8E93;">ШИРИНА W (М)</small><input type="number" id="strip-width" value="50" onchange="saveGlobalSettings()"></div>
+                    <div><small style="font-size: 0.65rem; color: #8E8E93;">КОЭФФИЦИЕНТ K</small><input type="number" id="k-coeff" value="1.0" step="0.1" onchange="saveGlobalSettings()"></div>
                 </div>
             </div>
             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
@@ -225,16 +223,27 @@
                     <span class="stat-hint" id="dist-label">Маршрут сессии</span>
                     <span class="stat-val" id="stat-dist">0 м</span>
                 </div>
-                <div class="stat-card dog-stat">
-                    <span class="stat-hint">Собаки (Всего)</span>
-                    <span class="stat-val" id="stat-dog-count">0</span>
+                
+                <div style="display: flex; gap: 8px;">
+                    <div class="stat-card dog-stat" style="flex: 1;">
+                        <span class="stat-hint">Собаки</span>
+                        <span class="stat-val" id="stat-dog-count">0</span>
+                    </div>
+                    <div class="stat-card cat-stat" style="flex: 1;">
+                        <span class="stat-hint">Кошки</span>
+                        <span class="stat-val" id="stat-cat-count">0</span>
+                    </div>
                 </div>
-                <div class="stat-card cat-stat">
-                    <span class="stat-hint">Кошки (Всего)</span>
-                    <span class="stat-val" id="stat-cat-count">0</span>
+
+                <div class="stat-card" style="border-left: 6px solid var(--accent);">
+                    <span class="stat-hint">Общая плотность (ос/км²)</span>
+                    <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                        <div><small>Собаки:</small> <b id="stat-total-dog-dens">--</b></div>
+                        <div><small>Кошки:</small> <b id="stat-total-cat-dens">--</b></div>
+                    </div>
                 </div>
                 
-                <label class="group-label" style="margin-top: 20px;">Плотность по биотопам (ос/км²)</label>
+                <label class="group-label" style="margin-top: 20px;">Плотность по биотопам</label>
                 <div class="stat-card" style="padding: 5px 10px;">
                     <table class="analysis-table" id="biotope-table">
                         <thead><tr><th>Биотоп</th><th>Собаки</th><th>Кошки</th></tr></thead>
@@ -248,7 +257,7 @@
 
 <div id="backup-modal" class="modal">
     <div class="modal-box">
-        <div class="modal-title">Бэкап JSON</div>
+        <div class="modal-title" style="font-weight: 700; text-align: center; margin-bottom: 15px;">Бэкап JSON</div>
         <button class="btn-main" style="background: var(--success); color: white;" onclick="downloadBackupJSON()">СКАЧАТЬ</button>
         <button class="btn-main" style="background: var(--accent); color: white;" onclick="document.getElementById('import-file').click()">ЗАГРУЗИТЬ</button>
         <input type="file" id="import-file" style="display:none" accept=".json" onchange="importBackupJSON(event)">
@@ -256,7 +265,7 @@
     </div>
 </div>
 
-<footer>Stray Animals Street Counter v1.1.3 (beta)</footer>
+<footer>Stray Animals Street Counter v1.1.4 (beta)</footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -299,14 +308,14 @@
 
     function startSession() {
         const name = document.getElementById('observer-name').value.trim();
-        if (!name) return alert("Введите ФИО!");
+        if (!name) return alert("Введите ФИО учётчика!");
         activeSession = { id: Date.now(), observer: name, startTime: Date.now(), track: [], data: [], distance: 0 };
         localStorage.setItem('sc_v109_observer', name);
         saveActiveSession(); initUI(); requestWakeLock();
     }
 
     function confirmEndSession() {
-        if (confirm("Завершить сессию?")) {
+        if (confirm("Завершить текущую сессию и сохранить в архив?")) {
             activeSession.endTime = Date.now();
             activeSession.totalDistance = activeSession.distance;
             sessions.push(activeSession);
@@ -361,7 +370,7 @@
     function finalizeGroup() {
         if (!activeSession) return;
         if (!validateHabitat()) return;
-        if (!lastCoords) return alert("Нет GPS!");
+        if (!lastCoords) return alert("Ожидание GPS координат...");
         activeSession.data.push({
             groupId: Date.now(), habitat: document.getElementById('habitat-sel').value,
             lat: lastCoords[0], lng: lastCoords[1], animals: currentGroup,
@@ -393,7 +402,7 @@
             const acc = Math.round(pos.coords.accuracy);
             lastCoords = [pos.coords.latitude, pos.coords.longitude];
             document.getElementById('gps-acc').innerText = acc + " м";
-            document.getElementById('gps-acc').style.background = acc <= 30 ? "var(--success)" : "var(--warning)";
+            document.getElementById('gps-acc').style.background = acc <= 30 ? "var(--success)" : (acc <= 50 ? "var(--warning)" : "var(--danger)");
             userMarker.setLatLng(lastCoords);
             if (isFollowing) map.panTo(lastCoords);
             if (activeSession && acc <= 50) {
@@ -418,33 +427,50 @@
         
         let totalD = 0, dogs = 0, cats = 0;
         let biotypes = {};
+        let areaSum = 0; // Для общей плотности: Сумма (L * W)
 
         target.forEach(s => {
-            totalD += (s.distance || s.totalDistance || 0);
+            const sDist = (s.distance || s.totalDistance || 0);
+            totalD += sDist;
+            
             s.data.forEach(g => {
-                if (!biotypes[g.habitat]) biotypes[g.habitat] = { d: 0, dogs: 0, cats: 0, w: g.w, k: g.k };
+                if (!biotypes[g.habitat]) biotypes[g.habitat] = { dogs: 0, cats: 0, w: g.w, k: g.k };
                 g.animals.forEach(a => {
                     if (a.species === 'Собака') { dogs++; biotypes[g.habitat].dogs++; }
                     else { cats++; biotypes[g.habitat].cats++; }
                 });
             });
+            
+            // Расчет площади трансекта для этой сессии (км2)
+            // Берем ширину из последней записи или настроек
+            const w = s.data.length > 0 ? s.data[0].w : document.getElementById('strip-width').value;
+            areaSum += (sDist / 1000) * (w / 1000);
         });
 
         document.getElementById('stat-dist').innerText = (totalD/1000).toFixed(2) + " км";
         document.getElementById('stat-dog-count').innerText = dogs;
         document.getElementById('stat-cat-count').innerText = cats;
 
+        // Общая плотность
+        const kGlobal = document.getElementById('k-coeff').value;
+        if (areaSum > 0.001) {
+            document.getElementById('stat-total-dog-dens').innerText = ((dogs / areaSum) * kGlobal).toFixed(2);
+            document.getElementById('stat-total-cat-dens').innerText = ((cats / areaSum) * kGlobal).toFixed(2);
+        } else {
+            document.getElementById('stat-total-dog-dens').innerText = "--";
+            document.getElementById('stat-total-cat-dens').innerText = "--";
+        }
+
         const tbody = document.querySelector('#biotope-table tbody');
         tbody.innerHTML = "";
         
-        // Для плотности по биотопам: считаем долю дистанции этого биотопа. 
-        // В текущей логике дистанция общая, поэтому плотность считаем от общей L сессии/архива
-        const L = totalD / 1000;
+        // Плотность по биотопам (L общая / Кол-во биотопов — упрощенная модель для визуала)
+        const L_total = totalD / 1000;
         Object.keys(biotypes).forEach(h => {
             const b = biotypes[h];
             const W = b.w / 1000;
-            const dDens = L > 0.02 ? ((b.dogs / (L * W)) * b.k).toFixed(1) : "--";
-            const cDens = L > 0.02 ? ((b.cats / (L * W)) * b.k).toFixed(1) : "--";
+            const dDens = L_total > 0.02 ? ((b.dogs / (L_total * W)) * b.k).toFixed(1) : "--";
+            const cDens = L_total > 0.02 ? ((b.cats / (L_total * W)) * b.k).toFixed(1) : "--";
             tbody.innerHTML += `<tr><td>${h}</td><td>${dDens}</td><td>${cDens}</td></tr>`;
         });
     }
@@ -453,7 +479,7 @@
         const container = document.getElementById('journal-accordion');
         container.innerHTML = "";
         const all = activeSession ? [activeSession, ...[...sessions].reverse()] : [...sessions].reverse();
-        if (all.length === 0) return container.innerHTML = "<center style='padding:50px; color:#8E8E93;'>Пусто</center>";
+        if (all.length === 0) return container.innerHTML = "<center style='padding:50px; color:#8E8E93;'>Журнал пуст</center>";
         all.forEach(sess => {
             const isCurr = activeSession && sess.id === activeSession.id;
             const div = document.createElement('div');
@@ -493,7 +519,7 @@
                     if (activeSession) localStorage.setItem('sc_v109_active', JSON.stringify(activeSession));
                     location.reload();
                 }
-            } catch (err) { alert("Ошибка JSON"); }
+            } catch (err) { alert("Ошибка JSON!"); }
         };
         reader.readAsText(event.target.files[0]);
     }
@@ -535,7 +561,13 @@
     function loadHabitat() { const h = localStorage.getItem('sc_v109_last_hab'); if(h) document.getElementById('habitat-sel').value = h; updateHabitat(); }
     function saveGlobalSettings() { localStorage.setItem('sc_v109_w', document.getElementById('strip-width').value); localStorage.setItem('sc_v109_k', document.getElementById('k-coeff').value); }
     function checkDeleteCode() { const v = document.getElementById('delete-confirm-input').value === "УДАЛИТЬ"; document.getElementById('final-reset-btn').style.opacity = v ? "1" : "0.3"; document.getElementById('final-reset-btn').style.pointerEvents = v ? "auto" : "none"; }
-    function resetApp() { if(confirm("ВЫ УВЕРЕНЫ? Это удалит ВСЕ сессии и треки за весь период.")) { localStorage.clear(); location.reload(); } }
+    
+    function resetApp() { 
+        if(confirm("ВЫ УВЕРЕНЫ? Это действие безвозвратно удалит ВСЕ сессии и треки за весь период использования приложения.")) { 
+            localStorage.clear(); location.reload(); 
+        } 
+    }
+
     function updateMapMarkers() { markersLayer.clearLayers(); if(activeSession) activeSession.data.forEach(g => g.animals.forEach(a => L.circleMarker([g.lat, g.lng], {radius: 5, color: a.species==='Собака'?'#8E44AD':'#E67E22', fillOpacity:0.8}).addTo(markersLayer))); }
 
     document.querySelectorAll('.segment').forEach(s => s.onclick = function() { 
