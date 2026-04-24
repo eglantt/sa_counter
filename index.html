@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stray Animals Street Counter v1.1.5 (beta)</title>
+    <title>Stray Animals Street Counter v1.1.6 (beta)</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { box-sizing: border-box; }
@@ -267,7 +267,7 @@
     </div>
 </div>
 
-<footer>Stray Animals Street Counter v1.1.5 (beta)</footer>
+<footer>Stray Animals Street Counter v1.1.6 (beta)</footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -424,13 +424,15 @@
 
     function setAnalysisMode(mode) {
         analysisMode = mode;
-        document.querySelectorAll('#analysis-mode-ctrl .segment').forEach(s => s.classList.toggle('active', s.dataset.mode === mode));
+        const ctrl = document.getElementById('analysis-mode-ctrl');
+        ctrl.querySelectorAll('.segment').forEach(s => s.classList.toggle('active', s.dataset.mode === mode));
         calculateAnalytics();
     }
 
     function setAnalysisSpecies(species) {
         analysisSpecies = species;
-        document.querySelectorAll('#analysis-species-ctrl .segment').forEach(s => s.classList.toggle('active', s.dataset.species === species));
+        const ctrl = document.getElementById('analysis-species-ctrl');
+        ctrl.querySelectorAll('.segment').forEach(s => s.classList.toggle('active', s.dataset.species === species));
         calculateAnalytics();
     }
 
@@ -515,7 +517,7 @@
         reader.onload = e => {
             try {
                 const d = JSON.parse(e.target.result);
-                if (d.sessions && confirm("Заменить всю базу данными из файла?")) {
+                if (d.sessions) {
                     sessions = d.sessions; activeSession = d.active || null;
                     localStorage.setItem('sc_v109_sessions', JSON.stringify(sessions));
                     if (activeSession) localStorage.setItem('sc_v109_active', JSON.stringify(activeSession));
@@ -566,10 +568,24 @@
     function resetApp() { if(confirm("ВЫ УВЕРЕНЫ? Это удалит ВСЕ сессии и треки за весь период.")) { localStorage.clear(); location.reload(); } }
     function updateMapMarkers() { markersLayer.clearLayers(); if(activeSession) activeSession.data.forEach(g => g.animals.forEach(a => L.circleMarker([g.lat, g.lng], {radius: 5, color: a.species==='Собака'?'#8E44AD':'#E67E22', fillOpacity:0.8}).addTo(markersLayer))); }
 
+    // ИСПРАВЛЕННЫЙ ОБРАБОТЧИК КЛИКОВ (v1.1.6)
     document.querySelectorAll('.segment').forEach(s => s.onclick = function() { 
-        if(this.parentNode.id === 'analysis-mode-ctrl' || this.parentNode.id === 'analysis-species-ctrl') return;
-        this.parentNode.querySelectorAll('.segment').forEach(b => b.classList.remove('active')); this.classList.add('active'); updateHabitat(); 
+        // 1. Обработка кнопок анализа
+        if(this.parentNode.id === 'analysis-mode-ctrl') {
+            setAnalysisMode(this.dataset.mode);
+            return;
+        }
+        if(this.parentNode.id === 'analysis-species-ctrl') {
+            setAnalysisSpecies(this.dataset.species);
+            return;
+        }
+        
+        // 2. Обработка кнопок формы учета
+        this.parentNode.querySelectorAll('.segment').forEach(b => b.classList.remove('active')); 
+        this.classList.add('active'); 
+        updateHabitat(); 
     });
+
     initUI(); initGPS();
 </script>
 </body>
