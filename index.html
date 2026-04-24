@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Street Counter v1.0.8</title>
+    <title>Stray Animals Street Counter v1.0.9 (beta)</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
@@ -14,8 +14,9 @@
             --white: #FFFFFF;
             --danger: #FF3B30;
             --success: #34C759;
-            --dog-color: #8E44AD; /* Фиолетовый */
-            --cat-color: #E67E22; /* Оранжевый */
+            --warning: #FF9500;
+            --dog-color: #8E44AD;
+            --cat-color: #E67E22;
         }
 
         body { 
@@ -25,7 +26,7 @@
             height: 100dvh; overflow: hidden;
         }
 
-        #map { height: 35vh; width: 100%; flex-shrink: 0; z-index: 1; position: relative; border-bottom: 1px solid var(--border); }
+        #map { height: 30vh; width: 100%; flex-shrink: 0; z-index: 1; position: relative; border-bottom: 1px solid var(--border); }
 
         .map-overlay-btn {
             position: absolute; bottom: 12px; right: 12px; z-index: 500;
@@ -36,101 +37,97 @@
         }
         .map-overlay-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
 
+        .rec-indicator {
+            position: absolute; top: 12px; left: 12px; z-index: 500;
+            background: rgba(255, 255, 255, 0.9); padding: 5px 10px;
+            border-radius: 20px; display: none; align-items: center; gap: 8px;
+            font-size: 0.75rem; font-weight: 800; border: 1px solid var(--border);
+        }
+        .rec-dot { width: 8px; height: 8px; background: var(--danger); border-radius: 50%; }
+        .pulse { animation: pulse-red 1.5s infinite; }
+        @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+
         .service-bar {
             background: var(--white); border-bottom: 1px solid var(--border);
-            padding: 10px 15px; display: flex; justify-content: space-between;
-            align-items: center; z-index: 11; font-size: 0.8rem; font-weight: 600;
+            padding: 8px 15px; display: flex; justify-content: space-between;
+            align-items: center; z-index: 11; font-size: 0.75rem; font-weight: 600;
         }
 
-        .gps-status { display: flex; align-items: center; gap: 10px; }
         .accuracy-badge { padding: 3px 8px; border-radius: 6px; background: #E5E5EA; font-variant-numeric: tabular-nums; }
-        .btn-gps { 
-            background: var(--accent); color: white; border: none; 
-            padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700;
-        }
 
-        .sheet {
-            flex-grow: 1; background: var(--white);
-            display: flex; flex-direction: column;
-            overflow: hidden; z-index: 10;
-        }
+        .sheet { flex-grow: 1; background: var(--white); display: flex; flex-direction: column; overflow: hidden; z-index: 10; }
 
         .tabs { display: flex; background: var(--white); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-        .tab { 
-            flex: 1; padding: 14px 5px; text-align: center; font-weight: 600; 
-            font-size: 0.75rem; color: #8E8E93; cursor: pointer; text-transform: uppercase;
-        }
+        .tab { flex: 1; padding: 14px 5px; text-align: center; font-weight: 600; font-size: 0.75rem; color: #8E8E93; cursor: pointer; }
         .tab.active { color: var(--accent); border-bottom: 3px solid var(--accent); }
 
-        .scroll-container {
-            flex-grow: 1; overflow-y: auto; 
-            -webkit-overflow-scrolling: touch;
-            padding: 15px; padding-bottom: 140px;
-        }
+        .scroll-container { flex-grow: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 15px; padding-bottom: 60px; }
 
         .content-section { display: none; }
         .content-section.active { display: block; }
 
-        .control-group { margin-bottom: 20px; }
-        .group-label { font-size: 0.75rem; font-weight: 700; color: #636366; text-transform: uppercase; margin-bottom: 8px; display: block; }
+        .control-group { margin-bottom: 15px; }
+        .group-label { font-size: 0.7rem; font-weight: 700; color: #636366; text-transform: uppercase; margin-bottom: 6px; display: block; }
         
         .segmented-control { display: flex; background: #E3E3E8; border-radius: 10px; padding: 2px; gap: 2px; }
-        .segment {
-            flex: 1; padding: 12px 4px; text-align: center; font-size: 0.85rem;
-            border-radius: 8px; cursor: pointer; transition: 0.2s; color: #48484A;
-        }
+        .segment { flex: 1; padding: 10px 4px; text-align: center; font-size: 0.8rem; border-radius: 8px; cursor: pointer; color: #48484A; }
         .segment.active { background: var(--white); box-shadow: 0 2px 4px rgba(0,0,0,0.12); font-weight: 700; color: var(--text-main); }
 
-        .btn-main {
-            width: 100%; padding: 18px; border: none; border-radius: 14px;
-            font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 12px;
-        }
+        .btn-main { width: 100%; padding: 16px; border: none; border-radius: 14px; font-weight: 700; font-size: 0.95rem; cursor: pointer; margin-top: 10px; }
         .btn-add { background: #E8F2FF; color: var(--accent); border: 1px solid rgba(0,122,255,0.3); }
-        .btn-save { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(0,122,255,0.3); }
+        .btn-save { background: var(--accent); color: white; }
+        .btn-save:disabled { background: var(--border); opacity: 0.6; }
 
-        .group-preview {
-            background: #F2F2F7; border: 1px dashed var(--border); border-radius: 10px;
-            padding: 14px; min-height: 40px; margin-top: 15px; font-size: 0.9rem; line-height: 1.5;
-        }
+        .session-btn-start { background: var(--success); color: white; }
+        .session-btn-stop { background: var(--danger); color: white; }
 
-        .stat-card { background: #F2F2F7; padding: 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid var(--border); }
+        .group-preview { background: #F2F2F7; border: 1px dashed var(--border); border-radius: 10px; padding: 12px; min-height: 30px; margin-top: 10px; font-size: 0.85rem; }
+
+        .stat-card { background: #F2F2F7; padding: 14px; border-radius: 14px; margin-bottom: 10px; border: 1px solid var(--border); }
         .stat-card.dog-stat { border-left: 6px solid var(--dog-color); }
         .stat-card.cat-stat { border-left: 6px solid var(--cat-color); }
-        .stat-val { font-size: 1.4rem; font-weight: 800; display: block; margin-top: 4px; color: var(--text-main); }
-        .stat-hint { font-size: 0.7rem; color: #636366; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-val { font-size: 1.2rem; font-weight: 800; display: block; color: var(--text-main); }
+        .stat-hint { font-size: 0.65rem; color: #636366; text-transform: uppercase; }
 
-        select, input {
-            width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border);
-            font-size: 1rem; box-sizing: border-box; background: var(--white); color: var(--text-main);
+        select, input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border); font-size: 0.95rem; background: var(--white); }
+
+        /* Журнал Аккордеон */
+        .journal-group { background: var(--white); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; overflow: hidden; }
+        .journal-header { padding: 12px; background: #F9F9F9; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .journal-body { display: none; padding: 10px; border-top: 1px solid var(--border); background: #FFF; font-size: 0.8rem; }
+        .journal-body.active { display: block; }
+        .journal-item { padding: 6px 0; border-bottom: 1px solid #F2F2F7; }
+        .journal-item:last-child { border-bottom: none; }
+
+        footer { text-align: center; padding: 10px; font-size: 0.65rem; color: #8E8E93; background: var(--white); border-top: 1px solid var(--border); }
+
+        .lock-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95);
+            z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center;
         }
 
-        .journal-card {
-            background: var(--white); border: 1px solid var(--border); border-radius: 12px;
-            margin-bottom: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: center;
+        .no-session-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(255,255,255,0.7); z-index: 100; display: flex; 
+            align-items: center; justify-content: center; font-weight: 700; color: var(--danger);
+            text-align: center; padding: 20px;
         }
-        .journal-meta { font-size: 0.7rem; color: #8E8E93; margin-top: 4px; line-height: 1.3; }
-        .journal-coords { font-size: 0.65rem; color: #AEAEB2; font-family: monospace; }
-        .btn-del-entry { color: var(--danger); font-size: 1.2rem; padding: 10px; cursor: pointer; }
-
-        .danger-zone {
-            margin-top: 50px; padding: 20px; border: 2px solid #FF3B3022; border-radius: 16px; background: #FFF2F2;
-        }
-        .btn-danger-confirm {
-            background: var(--danger); color: white; opacity: 0.3; pointer-events: none;
-        }
-        .btn-danger-confirm.active { opacity: 1; pointer-events: auto; }
     </style>
 </head>
 <body>
 
 <div id="map">
+    <div class="rec-indicator" id="rec-ui">
+        <div class="rec-dot pulse" id="rec-dot"></div>
+        <span id="rec-timer">00:00:00</span>
+    </div>
     <div id="follow-btn" class="map-overlay-btn active" onclick="toggleFollow()">◎</div>
 </div>
 
 <div class="service-bar">
-    <div class="gps-status">
-        <button class="btn-gps" onclick="forceGPSUpdate()">ОБНОВИТЬ GPS</button>
+    <div style="display: flex; align-items: center; gap: 8px;">
         <span class="accuracy-badge" id="gps-acc">0 м</span>
+        <span id="observer-name-display" style="color: var(--accent); font-size: 0.65rem;"></span>
     </div>
     <div id="sys-clock">00:00:00</div>
 </div>
@@ -144,10 +141,13 @@
     </div>
 
     <div class="scroll-container">
-        <div id="tab-0" class="content-section active">
+        <div id="tab-0" class="content-section active" style="position: relative;">
+            <div id="session-lock" class="no-session-overlay">Сначала начните сессию на вкладке "Сессия"</div>
+            
             <div class="control-group">
-                <label class="group-label">Текущий биотоп</label>
-                <select id="habitat-sel" onchange="saveSettings()">
+                <label class="group-label">Биотоп</label>
+                <select id="habitat-sel" onchange="updateHabitat()">
+                    <option value="">-- ВЫБЕРИТЕ БИОТОП --</option>
                     <option value="Промзона">Промзона</option>
                     <option value="Свалка">Свалка</option>
                     <option value="Пустырь">Пустырь</option>
@@ -174,7 +174,7 @@
                         <div class="segment active" data-val="⚬">⚬</div>
                     </div>
                 </div>
-                <div style="flex: 1.5;">
+                <div style="flex: 1.2;">
                     <label class="group-label">Возраст</label>
                     <div class="segmented-control" id="age-ctrl">
                         <div class="segment" data-val="Juv">Juv</div>
@@ -194,65 +194,69 @@
                 </div>
             </div>
 
-            <button class="btn-main btn-add" onclick="addToGroup()">ВКЛЮЧИТЬ В ГРУППУ</button>
+            <button class="btn-main btn-add" id="btn-add-group" onclick="addToGroup()">ВКЛЮЧИТЬ В ГРУППУ</button>
             <div class="group-preview" id="group-list">Группа пуста</div>
-            <button class="btn-main btn-save" onclick="finalizeGroup()">ЗАФИКСИРОВАТЬ ГРУППУ</button>
+            <button class="btn-main btn-save" id="btn-final-save" onclick="finalizeGroup()" disabled>ЗАФИКСИРОВАТЬ ГРУППУ</button>
         </div>
 
         <div id="tab-1" class="content-section">
-            <div id="journal-container"></div>
+            <div id="journal-accordion"></div>
         </div>
 
         <div id="tab-2" class="content-section">
-            <div class="control-group">
-                <label class="group-label">Ширина полосы обзора (W), метры</label>
-                <input type="number" id="strip-width" value="50" onchange="saveSettings()">
+            <div id="setup-ui">
+                <div class="control-group">
+                    <label class="group-label">ФИО Учётчика</label>
+                    <input type="text" id="observer-name" placeholder="Введите фамилию и инициалы">
+                </div>
+                <button class="btn-main session-btn-start" onclick="startSession()">НАЧАТЬ НОВЫЙ УЧЁТ</button>
             </div>
-            <div class="control-group">
-                <label class="group-label">Коэффициент активности (K)</label>
-                <input type="number" id="k-coeff" value="1.0" step="0.1" onchange="saveSettings()">
+
+            <div id="active-session-ui" style="display: none;">
+                <div class="stat-card" style="border-left: 6px solid var(--success);">
+                    <span class="stat-hint">Статус</span>
+                    <span class="stat-val" style="color: var(--success);">УЧЁТ ИДЁТ</span>
+                    <span id="session-start-time" style="font-size: 0.7rem; color: #8E8E93;"></span>
+                </div>
+                <button class="btn-main session-btn-stop" onclick="confirmEndSession()">ЗАВЕРШИТЬ СЕССИЮ</button>
             </div>
-            
-            <button class="btn-main" style="background: var(--success); color: white;" onclick="exportCSV()">ЭКСПОРТ В CSV (Excel)</button>
-            
-            <div class="danger-zone">
-                <label class="group-label" style="color: var(--danger)">ОПАСНАЯ ЗОНА: ПОЛНЫЙ СБРОС</label>
-                <p style="font-size: 0.75rem; color: #636366; margin-bottom: 12px;">Это действие безвозвратно удалит все данные и треки за все дни работы.</p>
-                <input type="text" id="delete-confirm-input" placeholder="Введите слово УДАЛИТЬ" oninput="checkDeleteCode()">
-                <button id="final-reset-btn" class="btn-main btn-danger-confirm" onclick="resetDB()">ПОДТВЕРДИТЬ УДАЛЕНИЕ БАЗЫ</button>
+
+            <div class="control-group" style="margin-top: 25px;">
+                <label class="group-label">Настройки трансекта</label>
+                <div style="display: flex; gap: 8px;">
+                    <div style="flex: 1;"><small>Ширина W (м)</small><input type="number" id="strip-width" value="50" onchange="saveGlobalSettings()"></div>
+                    <div style="flex: 1;"><small>Коэфф. K</small><input type="number" id="k-coeff" value="1.0" step="0.1" onchange="saveGlobalSettings()"></div>
+                </div>
+            </div>
+
+            <button class="btn-main" style="background: #E5E5EA; color: var(--text-main); margin-top: 20px;" onclick="exportCSV()">ЭКСПОРТ ВСЕЙ БАЗЫ (CSV)</button>
+
+            <div style="margin-top: 40px; padding: 15px; border: 1px solid var(--danger); border-radius: 12px;">
+                <label class="group-label" style="color: var(--danger)">Сброс данных</label>
+                <input type="text" id="delete-confirm-input" placeholder="Введите УДАЛИТЬ" oninput="checkDeleteCode()">
+                <button id="final-reset-btn" class="btn-main" style="background: var(--danger); color: white; opacity: 0.3; pointer-events: none;" onclick="resetApp()">УДАЛИТЬ ВСЕ СЕССИИ</button>
             </div>
         </div>
 
         <div id="tab-3" class="content-section">
-            <div class="stat-card">
-                <span class="stat-hint">Общий путь</span>
-                <span class="stat-val" id="stat-dist">0 м</span>
-            </div>
-
-            <div class="stat-card dog-stat">
-                <span class="stat-hint" style="color: var(--dog-color)">Собаки (Фиолетовые)</span>
-                <div style="display: flex; justify-content: space-between; margin-top: 8px;">
-                    <div>
-                        <span class="stat-hint">Учтено</span>
-                        <span class="stat-val" id="stat-dog-count">0</span>
-                    </div>
-                    <div style="text-align: right;">
-                        <span class="stat-hint">Плотность</span>
-                        <span class="stat-val" id="stat-dog-density">--</span>
+            <div id="analysis-empty" style="text-align: center; padding: 40px; color: #8E8E93;">Начните сессию для анализа</div>
+            <div id="analysis-content" style="display: none;">
+                <div class="stat-card">
+                    <span class="stat-hint">Текущий маршрут</span>
+                    <span class="stat-val" id="stat-dist">0 м</span>
+                </div>
+                <div class="stat-card dog-stat">
+                    <span class="stat-hint">Собаки</span>
+                    <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                        <div><span class="stat-hint">Учтено</span><span class="stat-val" id="stat-dog-count">0</span></div>
+                        <div style="text-align: right;"><span class="stat-hint">Плотность</span><span class="stat-val" id="stat-dog-density">--</span></div>
                     </div>
                 </div>
-            </div>
-
-            <div class="stat-card cat-stat">
-                <span class="stat-hint" style="color: var(--cat-color)">Кошки (Оранжевые)</span>
-                <div style="display: flex; justify-content: space-between; margin-top: 8px;">
-                    <div>
-                        <span class="stat-hint">Учтено</span>
-                        <span class="stat-val" id="stat-cat-count">0</span>
-                    </div>
-                    <div style="text-align: right;">
-                        <span class="stat-hint">Плотность</span>
-                        <span class="stat-val" id="stat-cat-density">--</span>
+                <div class="stat-card cat-stat">
+                    <span class="stat-hint">Кошки</span>
+                    <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                        <div><span class="stat-hint">Учтено</span><span class="stat-val" id="stat-cat-count">0</span></div>
+                        <div style="text-align: right;"><span class="stat-hint">Плотность</span><span class="stat-val" id="stat-cat-density">--</span></div>
                     </div>
                 </div>
             </div>
@@ -260,100 +264,112 @@
     </div>
 </div>
 
+<footer>Stray Animals Street Counter v1.0.9 (beta)</footer>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    let db = JSON.parse(localStorage.getItem('sc_v108_db') || '[]');
-    let track = JSON.parse(localStorage.getItem('sc_v108_track') || '[]');
-    let currentGroup = JSON.parse(localStorage.getItem('sc_v108_temp_group') || '[]');
-    let lastCoords = null;
+    // Инициализация базы данных
+    let sessions = JSON.parse(localStorage.getItem('sc_v109_sessions') || '[]');
+    let activeSession = JSON.parse(localStorage.getItem('sc_v109_active') || 'null');
+    let currentGroup = [];
     let watchID = null;
+    let wakeLock = null;
     let isFollowing = true;
-    let mapMarkers = [];
+    let lastCoords = null;
 
     const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([43.2389, 76.9455], 15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     const userMarker = L.circleMarker([0,0], {radius: 7, color: 'white', fillColor: '#007AFF', fillOpacity: 1, weight: 2}).addTo(map);
-    const trackLine = L.polyline(track, {color: '#007AFF', weight: 4, opacity: 0.5}).addTo(map);
+    const trackLine = L.polyline([], {color: '#007AFF', weight: 4, opacity: 0.6}).addTo(map);
+    let markersLayer = L.layerGroup().addTo(map);
 
-    function saveSettings() {
-        localStorage.setItem('sc_v108_hab', document.getElementById('habitat-sel').value);
-        localStorage.setItem('sc_v108_w', document.getElementById('strip-width').value);
-        localStorage.setItem('sc_v108_k', document.getElementById('k-coeff').value);
-        calculateAnalytics();
+    // --- СИСТЕМНЫЕ ФУНКЦИИ ---
+
+    async function requestWakeLock() {
+        try { if ('wakeLock' in navigator) wakeLock = await navigator.requestWakeLock('screen'); } catch (err) {}
     }
 
-    function loadSettings() {
-        if(localStorage.getItem('sc_v108_hab')) document.getElementById('habitat-sel').value = localStorage.getItem('sc_v108_hab');
-        if(localStorage.getItem('sc_v108_w')) document.getElementById('strip-width').value = localStorage.getItem('sc_v108_w');
-        if(localStorage.getItem('sc_v108_k')) document.getElementById('k-coeff').value = localStorage.getItem('sc_v108_k');
-        renderGroupPreview();
+    function updateClock() {
+        document.getElementById('sys-clock').innerText = new Date().toLocaleTimeString();
+        if (activeSession) {
+            const diff = Math.floor((Date.now() - activeSession.startTime) / 1000);
+            const h = String(Math.floor(diff / 3600)).padStart(2, '0');
+            const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+            const s = String(diff % 60).padStart(2, '0');
+            document.getElementById('rec-timer').innerText = `${h}:${m}:${s}`;
+        }
     }
+    setInterval(updateClock, 1000);
 
-    function initMarkers() {
-        mapMarkers.forEach(m => map.removeLayer(m));
-        mapMarkers = [];
-        db.forEach(item => {
-            const color = item.species === 'Собака' ? '#8E44AD' : '#E67E22';
-            const m = L.circleMarker([item.lat, item.lng], {radius: 5, color: '#1C1C1E', fillColor: color, weight: 1, fillOpacity: 0.9});
-            m.addTo(map);
-            mapMarkers.push(m);
-        });
-    }
-
-    setInterval(() => { document.getElementById('sys-clock').innerText = new Date().toLocaleTimeString(); }, 1000);
-
-    function toggleFollow() {
-        isFollowing = !isFollowing;
-        document.getElementById('follow-btn').classList.toggle('active', isFollowing);
-    }
-
-    function forceGPSUpdate() {
-        if (watchID) navigator.geolocation.clearWatch(watchID);
-        watchID = navigator.geolocation.watchPosition(pos => {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
-            const acc = Math.round(pos.coords.accuracy);
-            lastCoords = [lat, lng];
-            
-            document.getElementById('gps-acc').innerText = acc + " м";
-            document.getElementById('gps-acc').style.color = acc <= 25 ? "var(--success)" : (acc <= 50 ? "#FF9500" : "var(--danger)");
-            
-            userMarker.setLatLng(lastCoords);
-            if (isFollowing) map.panTo(lastCoords);
-            
-            if (acc <= 50) {
-                if (track.length === 0 || map.distance(track[track.length-1], lastCoords) > 5) {
-                    track.push(lastCoords);
-                    localStorage.setItem('sc_v108_track', JSON.stringify(track));
-                    trackLine.setLatLngs(track);
-                    calculateAnalytics();
-                }
-            }
-        }, null, { enableHighAccuracy: true });
-    }
+    function toggleFollow() { isFollowing = !isFollowing; document.getElementById('follow-btn').classList.toggle('active', isFollowing); }
 
     function switchTab(idx) {
         document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
         document.querySelectorAll('.content-section').forEach((s, i) => s.classList.toggle('active', i === idx));
         if (idx === 1) renderJournal();
+        if (idx === 3) calculateAnalytics();
     }
 
-    document.querySelectorAll('.segmented-control .segment').forEach(s => {
-        s.onclick = function() {
-            this.parentNode.querySelectorAll('.segment').forEach(sib => sib.classList.remove('active'));
-            this.classList.add('active');
+    // --- ЛОГИКА СЕССИИ ---
+
+    function startSession() {
+        const name = document.getElementById('observer-name').value.trim();
+        if (!name) return alert("Пожалуйста, введите ФИО учётчика!");
+        
+        activeSession = {
+            id: Date.now(),
+            observer: name,
+            startTime: Date.now(),
+            track: [],
+            data: [],
+            distance: 0
+        };
+        localStorage.setItem('sc_v109_observer', name);
+        saveActiveSession();
+        initUI();
+        requestWakeLock();
+    }
+
+    function confirmEndSession() {
+        const stats = getSessionStats();
+        const msg = `ЗАВЕРШЕНИЕ УЧЁТА\n\nУчётчик: ${activeSession.observer}\nПуть: ${(activeSession.distance/1000).toFixed(2)} км\nЖивотных: ${activeSession.data.length}\n\nЗавершить и сохранить в архив?`;
+        if (confirm(msg)) {
+            activeSession.endTime = Date.now();
+            sessions.push(activeSession);
+            localStorage.setItem('sc_v109_sessions', JSON.stringify(sessions));
+            activeSession = null;
+            localStorage.removeItem('sc_v109_active');
+            if (wakeLock) { wakeLock.release(); wakeLock = null; }
+            initUI();
+            alert("Сессия сохранена в журнал.");
         }
-    });
+    }
+
+    function saveActiveSession() {
+        if (activeSession) localStorage.setItem('sc_v109_active', JSON.stringify(activeSession));
+    }
+
+    // --- УЧЁТ И ГРУППЫ ---
+
+    function updateHabitat() {
+        const val = document.getElementById('habitat-sel').value;
+        localStorage.setItem('sc_v109_last_hab', val);
+        document.getElementById('btn-final-save').disabled = (val === "" || currentGroup.length === 0);
+    }
 
     function addToGroup() {
-        currentGroup.push({
+        if (!activeSession) return;
+        const animal = {
             species: document.querySelector('#species-ctrl .active').dataset.val,
             sex: document.querySelector('#sex-ctrl .active').dataset.val,
             age: document.querySelector('#age-ctrl .active').dataset.val,
-            tag: document.querySelector('#tag-ctrl .active').dataset.val
-        });
-        localStorage.setItem('sc_v108_temp_group', JSON.stringify(currentGroup));
+            tag: document.querySelector('#tag-ctrl .active').dataset.val,
+            time: new Date().toLocaleTimeString(),
+            light: getLightStatus()
+        };
+        currentGroup.push(animal);
         renderGroupPreview();
+        updateHabitat();
     }
 
     function renderGroupPreview() {
@@ -363,102 +379,253 @@
     }
 
     function finalizeGroup() {
-        if (currentGroup.length === 0 || !lastCoords) return alert("Нет данных или GPS!");
+        if (!lastCoords) return alert("Ожидание GPS координат...");
         const hab = document.getElementById('habitat-sel').value;
-        const k = document.getElementById('k-coeff').value;
-        const groupID = Date.now();
-        const time = new Date().toLocaleString();
-
-        currentGroup.forEach(item => {
-            db.push({ ...item, groupID, hab, k, lat: lastCoords[0], lng: lastCoords[1], time });
-        });
-
+        const entry = {
+            groupId: Date.now(),
+            habitat: hab,
+            lat: lastCoords[0],
+            lng: lastCoords[1],
+            animals: currentGroup,
+            k: document.getElementById('k-coeff').value,
+            w: document.getElementById('strip-width').value
+        };
+        activeSession.data.push(entry);
         currentGroup = [];
-        localStorage.setItem('sc_v108_temp_group', '[]');
-        localStorage.setItem('sc_v108_db', JSON.stringify(db));
         renderGroupPreview();
-        initMarkers();
-        calculateAnalytics();
+        saveActiveSession();
+        updateMapMarkers();
+        updateHabitat();
+        alert("Группа зафиксирована");
     }
 
-    function renderJournal() {
-        const container = document.getElementById('journal-container');
-        if (db.length === 0) return container.innerHTML = '<center style="padding:40px; color:#8E8E93">Журнал пуст</center>';
-        container.innerHTML = db.map((item, i) => `
-            <div class="journal-card">
-                <div>
-                    <b>${item.species}</b> (${item.sex}, ${item.age})<br>
-                    <span class="journal-meta">${item.hab} | ${item.time.split(',')[1]}</span><br>
-                    <span class="journal-coords">${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}</span>
-                </div>
-                <div class="btn-del-entry" onclick="deleteEntry(${i})">✕</div>
-            </div>
-        `).reverse().join('');
+    function getLightStatus() {
+        const hour = new Date().getHours();
+        if (hour >= 7 && hour < 19) return "☀️ День";
+        if (hour >= 19 && hour < 21) return "🌅 Сумерки";
+        return "🌙 Ночь";
     }
 
-    function deleteEntry(i) {
-        if (confirm("Вы действительно хотите удалить эту конкретную запись из журнала?")) {
-            db.splice(db.length - 1 - i, 1);
-            localStorage.setItem('sc_v108_db', JSON.stringify(db));
-            renderJournal();
-            initMarkers();
-            calculateAnalytics();
+    // --- КАРТА И GPS ---
+
+    function initGPS() {
+        if (watchID) navigator.geolocation.clearWatch(watchID);
+        watchID = navigator.geolocation.watchPosition(pos => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const acc = Math.round(pos.coords.accuracy);
+            lastCoords = [lat, lng];
+
+            // Индикация точности
+            const badge = document.getElementById('gps-acc');
+            badge.innerText = acc + " м";
+            badge.style.background = acc <= 25 ? "var(--success)" : (acc <= 50 ? "var(--warning)" : "var(--danger)");
+            badge.style.color = "white";
+
+            const dot = document.getElementById('rec-dot');
+            if (dot) dot.style.background = acc <= 50 ? "var(--danger)" : "var(--warning)";
+
+            userMarker.setLatLng(lastCoords);
+            if (isFollowing) map.panTo(lastCoords);
+
+            if (activeSession && acc <= 50) {
+                if (activeSession.track.length === 0 || map.distance(activeSession.track[activeSession.track.length-1], lastCoords) > 7) {
+                    if (activeSession.track.length > 0) {
+                        activeSession.distance += map.distance(activeSession.track[activeSession.track.length-1], lastCoords);
+                    }
+                    activeSession.track.push(lastCoords);
+                    trackLine.setLatLngs(activeSession.track);
+                    saveActiveSession();
+                }
+            }
+        }, err => console.error(err), { enableHighAccuracy: true });
+    }
+
+    function updateMapMarkers() {
+        markersLayer.clearLayers();
+        if (activeSession) {
+            activeSession.data.forEach(g => {
+                g.animals.forEach(a => {
+                    const color = a.species === 'Собака' ? varProp('--dog-color') : varProp('--cat-color');
+                    L.circleMarker([g.lat, g.lng], {radius: 5, color: '#000', weight: 1, fillColor: color, fillOpacity: 0.8}).addTo(markersLayer);
+                });
+            });
         }
     }
 
-    function calculateAnalytics() {
-        let d = 0;
-        for (let i = 1; i < track.length; i++) d += map.distance(track[i-1], track[i]);
-        document.getElementById('stat-dist').innerText = Math.round(d) + " м";
-        
-        const dogs = db.filter(item => item.species === 'Собака');
-        const cats = db.filter(item => item.species === 'Кошка');
+    function varProp(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
-        document.getElementById('stat-dog-count').innerText = dogs.length;
-        document.getElementById('stat-cat-count').innerText = cats.length;
+    // --- ЖУРНАЛ И АНАЛИТИКА ---
+
+    function renderJournal() {
+        const container = document.getElementById('journal-accordion');
+        container.innerHTML = "";
         
+        // Показываем сначала текущую сессию, потом архив
+        const allData = activeSession ? [activeSession, ...[...sessions].reverse()] : [...sessions].reverse();
+
+        if (allData.length === 0) {
+            container.innerHTML = "<center style='padding:50px; color:#8E8E93;'>Журнал пуст</center>";
+            return;
+        }
+
+        allData.forEach(sess => {
+            const isCurrent = activeSession && sess.id === activeSession.id;
+            const sessDiv = document.createElement('div');
+            sessDiv.className = 'journal-group';
+            sessDiv.innerHTML = `
+                <div class="journal-header" onclick="this.nextElementSibling.classList.toggle('active')">
+                    <div>
+                        <b style="${isCurrent ? 'color:var(--success)' : ''}">${isCurrent ? '● ТЕКУЩИЙ УЧЁТ' : new Date(sess.id).toLocaleDateString()}</b><br>
+                        <small>${sess.observer} | ${(sess.distance/1000).toFixed(2)} км</small>
+                    </div>
+                    <span>${sess.data.length} фикс. ▾</span>
+                </div>
+                <div class="journal-body">
+                    ${sess.data.map(g => `
+                        <div class="journal-item">
+                            <div style="display:flex; justify-content:space-between">
+                                <b>${g.habitat}</b> <span>${g.animals[0].time} ${g.animals[0].light.split(' ')[0]}</span>
+                            </div>
+                            <div style="margin-top:4px">
+                                ${g.animals.map(a => `<span style="color:${a.species==='Собака'?'var(--dog-color)':'var(--cat-color)'}">• ${a.species} (${a.sex}, ${a.age})</span>`).join('<br>')}
+                            </div>
+                            <div style="font-size:0.6rem; color:#AEAEB2; margin-top:4px">${g.lat.toFixed(6)}, ${g.lng.toFixed(6)}</div>
+                        </div>
+                    `).reverse().join('')}
+                </div>
+            `;
+            container.appendChild(sessDiv);
+        });
+    }
+
+    function calculateAnalytics() {
+        const empty = document.getElementById('analysis-empty');
+        const content = document.getElementById('analysis-content');
+        
+        if (!activeSession) {
+            empty.style.display = 'block';
+            content.style.display = 'none';
+            return;
+        }
+
+        empty.style.display = 'none';
+        content.style.display = 'block';
+
+        const d = activeSession.distance;
+        document.getElementById('stat-dist').innerText = d > 1000 ? (d/1000).toFixed(2) + " км" : Math.round(d) + " м";
+
+        let dogs = 0, cats = 0;
+        activeSession.data.forEach(g => {
+            g.animals.forEach(a => {
+                if (a.species === 'Собака') dogs++;
+                else cats++;
+            });
+        });
+
+        document.getElementById('stat-dog-count').innerText = dogs;
+        document.getElementById('stat-cat-count').innerText = cats;
+
         const w = document.getElementById('strip-width').value / 1000;
         const l = d / 1000;
         const k = document.getElementById('k-coeff').value;
 
-        if (l > 0 && w > 0) {
-            const dogDens = (dogs.length / (l * w)) * k;
-            const catDens = (cats.length / (l * w)) * k;
-            document.getElementById('stat-dog-density').innerText = dogDens.toFixed(2) + " ос/км²";
-            document.getElementById('stat-cat-density').innerText = catDens.toFixed(2) + " ос/км²";
+        if (l > 0.01) {
+            document.getElementById('stat-dog-density').innerText = ((dogs / (l * w)) * k).toFixed(2) + " ос/км²";
+            document.getElementById('stat-cat-density').innerText = ((cats / (l * w)) * k).toFixed(2) + " ос/км²";
+        } else {
+            document.getElementById('stat-dog-density').innerText = "--";
+            document.getElementById('stat-cat-density').innerText = "--";
         }
     }
 
+    // --- ВСПОМОГАТЕЛЬНЫЕ ---
+
+    function initUI() {
+        if (activeSession) {
+            document.getElementById('setup-ui').style.display = 'none';
+            document.getElementById('active-session-ui').style.display = 'block';
+            document.getElementById('session-lock').style.display = 'none';
+            document.getElementById('rec-ui').style.display = 'flex';
+            document.getElementById('observer-name-display').innerText = activeSession.observer;
+            document.getElementById('session-start-time').innerText = "Начало: " + new Date(activeSession.startTime).toLocaleTimeString();
+            trackLine.setLatLngs(activeSession.track);
+        } else {
+            document.getElementById('setup-ui').style.display = 'block';
+            document.getElementById('active-session-ui').style.display = 'none';
+            document.getElementById('session-lock').style.display = 'flex';
+            document.getElementById('rec-ui').style.display = 'none';
+            document.getElementById('observer-name-display').innerText = "";
+            document.getElementById('observer-name').value = localStorage.getItem('sc_v109_observer') || "";
+            trackLine.setLatLngs([]);
+        }
+        updateMapMarkers();
+        loadHabitat();
+    }
+
+    function loadHabitat() {
+        const last = localStorage.getItem('sc_v109_last_hab');
+        if (last) {
+            document.getElementById('habitat-sel').value = last;
+            updateHabitat();
+        }
+    }
+
+    function getSessionStats() {
+        let dogs = 0, cats = 0;
+        activeSession.data.forEach(g => {
+            g.animals.forEach(a => { if(a.species==='Собака') dogs++; else cats++; });
+        });
+        return { dogs, cats };
+    }
+
     function exportCSV() {
-        let csv = "\uFEFFДата_Время;Широта;Долгота;ID;Биотоп;Вид;Пол;Возраст;Метка;K\n";
-        db.forEach(r => { csv += `${r.time};${r.lat};${r.lng};${r.groupID};${r.hab};${r.species};${r.sex};${r.age};${r.tag};${r.k}\n`; });
+        let csv = "\uFEFFObserver;Session_ID;Date;Time;Light;Habitat;Species;Sex;Age;Tag;Lat;Lng;K;W\n";
+        const all = [...sessions];
+        if (activeSession) all.push(activeSession);
+        
+        all.forEach(s => {
+            s.data.forEach(g => {
+                g.animals.forEach(a => {
+                    csv += `${s.observer};${s.id};${new Date(s.id).toLocaleDateString()};${a.time};${a.light};${g.habitat};${a.species};${a.sex};${a.age};${a.tag};${g.lat};${g.lng};${g.k};${g.w}\n`;
+                });
+            });
+        });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-        link.download = `count_${new Date().toLocaleDateString()}.csv`;
+        link.download = `stray_animals_export_${new Date().toLocaleDateString()}.csv`;
         link.click();
     }
 
     function checkDeleteCode() {
-        const input = document.getElementById('delete-confirm-input');
         const btn = document.getElementById('final-reset-btn');
-        if (input.value === "УДАЛИТЬ") {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
+        btn.style.opacity = document.getElementById('delete-confirm-input').value === "УДАЛИТЬ" ? "1" : "0.3";
+        btn.style.pointerEvents = document.getElementById('delete-confirm-input').value === "УДАЛИТЬ" ? "auto" : "none";
+    }
+
+    function resetApp() {
+        if (confirm("Удалить ВСЕ сессии и настройки навсегда?")) {
+            localStorage.clear();
+            location.reload();
         }
     }
 
-    function resetDB() { 
-        if (confirm("ВНИМАНИЕ! Вы подтверждаете полное и безвозвратное удаление ВСЕХ накопленных данных за все дни работы?")) { 
-            localStorage.clear(); 
-            location.reload(); 
-        } 
+    function saveGlobalSettings() {
+        localStorage.setItem('sc_v109_w', document.getElementById('strip-width').value);
+        localStorage.setItem('sc_v109_k', document.getElementById('k-coeff').value);
     }
 
-    loadSettings();
-    forceGPSUpdate();
-    initMarkers();
-    calculateAnalytics();
+    // Инициализация при старте
+    document.querySelectorAll('.segmented-control .segment').forEach(s => {
+        s.onclick = function() {
+            this.parentNode.querySelectorAll('.segment').forEach(sib => sib.classList.remove('active'));
+            this.classList.add('active');
+            updateHabitat();
+        }
+    });
+
+    initUI();
+    initGPS();
 </script>
 </body>
 </html>
