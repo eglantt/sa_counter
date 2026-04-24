@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stray Animals Street Counter v1.1.4 (beta)</title>
+    <title>Stray Animals Street Counter v1.1.5 (beta)</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { box-sizing: border-box; }
@@ -30,12 +30,14 @@
         #map { height: 30vh; width: 100%; flex-shrink: 0; z-index: 1; position: relative; border-bottom: 1px solid var(--border); }
 
         .map-overlay-btn {
-            position: absolute; bottom: 12px; right: 12px; z-index: 500;
+            position: absolute; right: 12px; z-index: 500;
             width: 44px; height: 44px; background: var(--white);
             border: 1px solid var(--border); border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
             font-size: 1.4rem; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
+        #follow-btn { bottom: 12px; }
+        #refresh-gps-btn { top: 12px; font-size: 1.2rem; }
         .map-overlay-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
 
         .rec-indicator {
@@ -132,6 +134,7 @@
         <span id="rec-timer">00:00:00</span>
         <span id="rec-dist" style="border-left: 1px solid var(--border); padding-left: 10px; color: var(--accent);">0.00 км</span>
     </div>
+    <div id="refresh-gps-btn" class="map-overlay-btn" onclick="initGPS()">⟳</div>
     <div id="follow-btn" class="map-overlay-btn active" onclick="toggleFollow()">◎</div>
 </div>
 
@@ -140,7 +143,7 @@
         <span class="accuracy-badge" id="gps-acc">0 м</span>
         <span id="observer-name-display" style="color: var(--accent); font-size: 0.65rem;"></span>
     </div>
-    <div id="sys-clock">00:00:00</div>
+    <div id="sys-clock">00.00.0000 | 00:00:00</div>
 </div>
 
 <div class="sheet">
@@ -184,10 +187,10 @@
         <div id="tab-2" class="content-section">
             <div id="setup-ui">
                 <div class="control-group"><label class="group-label">ФИО Учётчика</label><input type="text" id="observer-name" placeholder="Фамилия И.О."></div>
-                <button class="btn-main" style="background: var(--success); color: white;" onclick="startSession()">НАЧАТЬ НОВЫЙ УЧЁТ</button>
+                <button class="btn-main" style="background: var(--success); color: white;" onclick="startSession()">НАЧАТЬ НОВУЮ СЕССИЮ</button>
             </div>
             <div id="active-session-ui" style="display: none;">
-                <div class="stat-card" style="border-left: 6px solid var(--success);"><span class="stat-hint">Статус</span><span class="stat-val" style="color: var(--success);">УЧЁТ ИДЁТ</span><span id="session-start-time" style="font-size: 0.7rem; color: #8E8E93;"></span></div>
+                <div class="stat-card" style="border-left: 6px solid var(--success);"><span class="stat-hint">Статус</span><span class="stat-val" style="color: var(--success);">СЕССИЯ АКТИВНА</span><span id="session-start-time" style="font-size: 0.7rem; color: #8E8E93;"></span></div>
                 <button class="btn-main" style="background: var(--danger); color: white;" onclick="confirmEndSession()">ЗАВЕРШИТЬ СЕССИЮ</button>
             </div>
             <div class="control-group" style="margin-top: 20px;">
@@ -218,35 +221,34 @@
                 </div>
             </div>
 
+            <div class="control-group">
+                <label class="group-label">Вид для анализа</label>
+                <div class="segmented-control" id="analysis-species-ctrl">
+                    <div class="segment active" data-species="Собака" onclick="setAnalysisSpecies('Собака')">СОБАКИ</div>
+                    <div class="segment" data-species="Кошка" onclick="setAnalysisSpecies('Кошка')">КОШКИ</div>
+                </div>
+            </div>
+
             <div id="analysis-container">
                 <div class="stat-card">
                     <span class="stat-hint" id="dist-label">Маршрут сессии</span>
                     <span class="stat-val" id="stat-dist">0 м</span>
                 </div>
                 
-                <div style="display: flex; gap: 8px;">
-                    <div class="stat-card dog-stat" style="flex: 1;">
-                        <span class="stat-hint">Собаки</span>
-                        <span class="stat-val" id="stat-dog-count">0</span>
-                    </div>
-                    <div class="stat-card cat-stat" style="flex: 1;">
-                        <span class="stat-hint">Кошки</span>
-                        <span class="stat-val" id="stat-cat-count">0</span>
-                    </div>
+                <div class="stat-card" id="species-card-ui">
+                    <span class="stat-hint" id="species-count-label">Собаки (Всего)</span>
+                    <span class="stat-val" id="stat-species-count">0</span>
                 </div>
 
                 <div class="stat-card" style="border-left: 6px solid var(--accent);">
                     <span class="stat-hint">Общая плотность (ос/км²)</span>
-                    <div style="display: flex; justify-content: space-between; margin-top: 5px;">
-                        <div><small>Собаки:</small> <b id="stat-total-dog-dens">--</b></div>
-                        <div><small>Кошки:</small> <b id="stat-total-cat-dens">--</b></div>
-                    </div>
+                    <span class="stat-val" id="stat-total-density">--</span>
                 </div>
                 
                 <label class="group-label" style="margin-top: 20px;">Плотность по биотопам</label>
                 <div class="stat-card" style="padding: 5px 10px;">
                     <table class="analysis-table" id="biotope-table">
-                        <thead><tr><th>Биотоп</th><th>Собаки</th><th>Кошки</th></tr></thead>
+                        <thead><tr><th>Биотоп</th><th>Кол-во</th><th>Плотность</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -265,7 +267,7 @@
     </div>
 </div>
 
-<footer>Stray Animals Street Counter v1.1.4 (beta)</footer>
+<footer>Stray Animals Street Counter v1.1.5 (beta)</footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -274,6 +276,7 @@
     let currentGroup = [];
     let watchID = null, wakeLock = null, isFollowing = true, lastCoords = null;
     let analysisMode = 'session';
+    let analysisSpecies = 'Собака';
 
     const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([43.2389, 76.9455], 15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
@@ -284,7 +287,10 @@
     async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.requestWakeLock('screen'); } catch (err) {} }
     
     function updateClock() {
-        document.getElementById('sys-clock').innerText = new Date().toLocaleTimeString();
+        const now = new Date();
+        const dateStr = now.toLocaleDateString();
+        const timeStr = now.toLocaleTimeString();
+        document.getElementById('sys-clock').innerText = `${dateStr} | ${timeStr}`;
         if (activeSession) {
             const diff = Math.floor((Date.now() - activeSession.startTime) / 1000);
             const h = String(Math.floor(diff / 3600)).padStart(2, '0');
@@ -398,6 +404,7 @@
     }
 
     function initGPS() {
+        if (watchID) navigator.geolocation.clearWatch(watchID);
         watchID = navigator.geolocation.watchPosition(pos => {
             const acc = Math.round(pos.coords.accuracy);
             lastCoords = [pos.coords.latitude, pos.coords.longitude];
@@ -412,7 +419,7 @@
                     saveActiveSession();
                 }
             }
-        }, null, { enableHighAccuracy: true });
+        }, err => console.error(err), { enableHighAccuracy: true });
     }
 
     function setAnalysisMode(mode) {
@@ -421,57 +428,52 @@
         calculateAnalytics();
     }
 
+    function setAnalysisSpecies(species) {
+        analysisSpecies = species;
+        document.querySelectorAll('#analysis-species-ctrl .segment').forEach(s => s.classList.toggle('active', s.dataset.species === species));
+        calculateAnalytics();
+    }
+
     function calculateAnalytics() {
         const target = analysisMode === 'session' ? (activeSession ? [activeSession] : []) : [...sessions, ...(activeSession ? [activeSession] : [])];
         document.getElementById('dist-label').innerText = analysisMode === 'session' ? 'Маршрут сессии' : 'Общий маршрут';
+        document.getElementById('species-count-label').innerText = analysisSpecies === 'Собака' ? 'Собаки (Всего)' : 'Кошки (Всего)';
+        document.getElementById('species-card-ui').style.borderLeft = `6px solid ${analysisSpecies === 'Собака' ? 'var(--dog-color)' : 'var(--cat-color)'}`;
         
-        let totalD = 0, dogs = 0, cats = 0;
+        let totalD = 0, speciesCount = 0, areaSum = 0;
         let biotypes = {};
-        let areaSum = 0; // Для общей плотности: Сумма (L * W)
 
         target.forEach(s => {
             const sDist = (s.distance || s.totalDistance || 0);
             totalD += sDist;
-            
             s.data.forEach(g => {
-                if (!biotypes[g.habitat]) biotypes[g.habitat] = { dogs: 0, cats: 0, w: g.w, k: g.k };
+                if (!biotypes[g.habitat]) biotypes[g.habitat] = { count: 0, w: g.w, k: g.k };
                 g.animals.forEach(a => {
-                    if (a.species === 'Собака') { dogs++; biotypes[g.habitat].dogs++; }
-                    else { cats++; biotypes[g.habitat].cats++; }
+                    if (a.species === analysisSpecies) { speciesCount++; biotypes[g.habitat].count++; }
                 });
             });
-            
-            // Расчет площади трансекта для этой сессии (км2)
-            // Берем ширину из последней записи или настроек
             const w = s.data.length > 0 ? s.data[0].w : document.getElementById('strip-width').value;
             areaSum += (sDist / 1000) * (w / 1000);
         });
 
         document.getElementById('stat-dist').innerText = (totalD/1000).toFixed(2) + " км";
-        document.getElementById('stat-dog-count').innerText = dogs;
-        document.getElementById('stat-cat-count').innerText = cats;
+        document.getElementById('stat-species-count').innerText = speciesCount;
 
-        // Общая плотность
         const kGlobal = document.getElementById('k-coeff').value;
         if (areaSum > 0.001) {
-            document.getElementById('stat-total-dog-dens').innerText = ((dogs / areaSum) * kGlobal).toFixed(2);
-            document.getElementById('stat-total-cat-dens').innerText = ((cats / areaSum) * kGlobal).toFixed(2);
+            document.getElementById('stat-total-density').innerText = ((speciesCount / areaSum) * kGlobal).toFixed(2);
         } else {
-            document.getElementById('stat-total-dog-dens').innerText = "--";
-            document.getElementById('stat-total-cat-dens').innerText = "--";
+            document.getElementById('stat-total-density').innerText = "--";
         }
 
         const tbody = document.querySelector('#biotope-table tbody');
         tbody.innerHTML = "";
-        
-        // Плотность по биотопам (L общая / Кол-во биотопов — упрощенная модель для визуала)
         const L_total = totalD / 1000;
         Object.keys(biotypes).forEach(h => {
             const b = biotypes[h];
             const W = b.w / 1000;
-            const dDens = L_total > 0.02 ? ((b.dogs / (L_total * W)) * b.k).toFixed(1) : "--";
-            const cDens = L_total > 0.02 ? ((b.cats / (L_total * W)) * b.k).toFixed(1) : "--";
-            tbody.innerHTML += `<tr><td>${h}</td><td>${dDens}</td><td>${cDens}</td></tr>`;
+            const dens = L_total > 0.02 ? ((b.count / (L_total * W)) * b.k).toFixed(1) : "--";
+            tbody.innerHTML += `<tr><td>${h}</td><td>${b.count}</td><td>${dens}</td></tr>`;
         });
     }
 
@@ -561,17 +563,11 @@
     function loadHabitat() { const h = localStorage.getItem('sc_v109_last_hab'); if(h) document.getElementById('habitat-sel').value = h; updateHabitat(); }
     function saveGlobalSettings() { localStorage.setItem('sc_v109_w', document.getElementById('strip-width').value); localStorage.setItem('sc_v109_k', document.getElementById('k-coeff').value); }
     function checkDeleteCode() { const v = document.getElementById('delete-confirm-input').value === "УДАЛИТЬ"; document.getElementById('final-reset-btn').style.opacity = v ? "1" : "0.3"; document.getElementById('final-reset-btn').style.pointerEvents = v ? "auto" : "none"; }
-    
-    function resetApp() { 
-        if(confirm("ВЫ УВЕРЕНЫ? Это действие безвозвратно удалит ВСЕ сессии и треки за весь период использования приложения.")) { 
-            localStorage.clear(); location.reload(); 
-        } 
-    }
-
+    function resetApp() { if(confirm("ВЫ УВЕРЕНЫ? Это удалит ВСЕ сессии и треки за весь период.")) { localStorage.clear(); location.reload(); } }
     function updateMapMarkers() { markersLayer.clearLayers(); if(activeSession) activeSession.data.forEach(g => g.animals.forEach(a => L.circleMarker([g.lat, g.lng], {radius: 5, color: a.species==='Собака'?'#8E44AD':'#E67E22', fillOpacity:0.8}).addTo(markersLayer))); }
 
     document.querySelectorAll('.segment').forEach(s => s.onclick = function() { 
-        if(this.parentNode.id === 'analysis-mode-ctrl') return;
+        if(this.parentNode.id === 'analysis-mode-ctrl' || this.parentNode.id === 'analysis-species-ctrl') return;
         this.parentNode.querySelectorAll('.segment').forEach(b => b.classList.remove('active')); this.classList.add('active'); updateHabitat(); 
     });
     initUI(); initGPS();
