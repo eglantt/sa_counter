@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Street Counter v1.0.7</title>
+    <title>Street Counter v1.0.8</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
@@ -94,7 +94,9 @@
         }
 
         .stat-card { background: #F2F2F7; padding: 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid var(--border); }
-        .stat-val { font-size: 1.4rem; font-weight: 800; display: block; margin-top: 4px; color: var(--accent); }
+        .stat-card.dog-stat { border-left: 6px solid var(--dog-color); }
+        .stat-card.cat-stat { border-left: 6px solid var(--cat-color); }
+        .stat-val { font-size: 1.4rem; font-weight: 800; display: block; margin-top: 4px; color: var(--text-main); }
         .stat-hint { font-size: 0.7rem; color: #636366; text-transform: uppercase; letter-spacing: 0.5px; }
 
         select, input {
@@ -223,16 +225,36 @@
 
         <div id="tab-3" class="content-section">
             <div class="stat-card">
-                <span class="stat-hint">Пройдено по маршруту</span>
+                <span class="stat-hint">Общий путь</span>
                 <span class="stat-val" id="stat-dist">0 м</span>
             </div>
-            <div class="stat-card">
-                <span class="stat-hint">Всего учтено особей</span>
-                <span class="stat-val" id="stat-count">0</span>
+
+            <div class="stat-card dog-stat">
+                <span class="stat-hint" style="color: var(--dog-color)">Собаки (Фиолетовые)</span>
+                <div style="display: flex; justify-content: space-between; margin-top: 8px;">
+                    <div>
+                        <span class="stat-hint">Учтено</span>
+                        <span class="stat-val" id="stat-dog-count">0</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="stat-hint">Плотность</span>
+                        <span class="stat-val" id="stat-dog-density">--</span>
+                    </div>
+                </div>
             </div>
-            <div class="stat-card">
-                <span class="stat-hint">Расчетная плотность</span>
-                <span class="stat-val" id="stat-density">-- ос./км²</span>
+
+            <div class="stat-card cat-stat">
+                <span class="stat-hint" style="color: var(--cat-color)">Кошки (Оранжевые)</span>
+                <div style="display: flex; justify-content: space-between; margin-top: 8px;">
+                    <div>
+                        <span class="stat-hint">Учтено</span>
+                        <span class="stat-val" id="stat-cat-count">0</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="stat-hint">Плотность</span>
+                        <span class="stat-val" id="stat-cat-density">--</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -240,9 +262,9 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    let db = JSON.parse(localStorage.getItem('sc_v107_db') || '[]');
-    let track = JSON.parse(localStorage.getItem('sc_v107_track') || '[]');
-    let currentGroup = JSON.parse(localStorage.getItem('sc_v107_temp_group') || '[]');
+    let db = JSON.parse(localStorage.getItem('sc_v108_db') || '[]');
+    let track = JSON.parse(localStorage.getItem('sc_v108_track') || '[]');
+    let currentGroup = JSON.parse(localStorage.getItem('sc_v108_temp_group') || '[]');
     let lastCoords = null;
     let watchID = null;
     let isFollowing = true;
@@ -254,16 +276,16 @@
     const trackLine = L.polyline(track, {color: '#007AFF', weight: 4, opacity: 0.5}).addTo(map);
 
     function saveSettings() {
-        localStorage.setItem('sc_v107_hab', document.getElementById('habitat-sel').value);
-        localStorage.setItem('sc_v107_w', document.getElementById('strip-width').value);
-        localStorage.setItem('sc_v107_k', document.getElementById('k-coeff').value);
+        localStorage.setItem('sc_v108_hab', document.getElementById('habitat-sel').value);
+        localStorage.setItem('sc_v108_w', document.getElementById('strip-width').value);
+        localStorage.setItem('sc_v108_k', document.getElementById('k-coeff').value);
         calculateAnalytics();
     }
 
     function loadSettings() {
-        if(localStorage.getItem('sc_v107_hab')) document.getElementById('habitat-sel').value = localStorage.getItem('sc_v107_hab');
-        if(localStorage.getItem('sc_v107_w')) document.getElementById('strip-width').value = localStorage.getItem('sc_v107_w');
-        if(localStorage.getItem('sc_v107_k')) document.getElementById('k-coeff').value = localStorage.getItem('sc_v107_k');
+        if(localStorage.getItem('sc_v108_hab')) document.getElementById('habitat-sel').value = localStorage.getItem('sc_v108_hab');
+        if(localStorage.getItem('sc_v108_w')) document.getElementById('strip-width').value = localStorage.getItem('sc_v108_w');
+        if(localStorage.getItem('sc_v108_k')) document.getElementById('k-coeff').value = localStorage.getItem('sc_v108_k');
         renderGroupPreview();
     }
 
@@ -302,7 +324,7 @@
             if (acc <= 50) {
                 if (track.length === 0 || map.distance(track[track.length-1], lastCoords) > 5) {
                     track.push(lastCoords);
-                    localStorage.setItem('sc_v107_track', JSON.stringify(track));
+                    localStorage.setItem('sc_v108_track', JSON.stringify(track));
                     trackLine.setLatLngs(track);
                     calculateAnalytics();
                 }
@@ -330,7 +352,7 @@
             age: document.querySelector('#age-ctrl .active').dataset.val,
             tag: document.querySelector('#tag-ctrl .active').dataset.val
         });
-        localStorage.setItem('sc_v107_temp_group', JSON.stringify(currentGroup));
+        localStorage.setItem('sc_v108_temp_group', JSON.stringify(currentGroup));
         renderGroupPreview();
     }
 
@@ -352,8 +374,8 @@
         });
 
         currentGroup = [];
-        localStorage.setItem('sc_v107_temp_group', '[]');
-        localStorage.setItem('sc_v107_db', JSON.stringify(db));
+        localStorage.setItem('sc_v108_temp_group', '[]');
+        localStorage.setItem('sc_v108_db', JSON.stringify(db));
         renderGroupPreview();
         initMarkers();
         calculateAnalytics();
@@ -377,7 +399,7 @@
     function deleteEntry(i) {
         if (confirm("Вы действительно хотите удалить эту конкретную запись из журнала?")) {
             db.splice(db.length - 1 - i, 1);
-            localStorage.setItem('sc_v107_db', JSON.stringify(db));
+            localStorage.setItem('sc_v108_db', JSON.stringify(db));
             renderJournal();
             initMarkers();
             calculateAnalytics();
@@ -388,14 +410,22 @@
         let d = 0;
         for (let i = 1; i < track.length; i++) d += map.distance(track[i-1], track[i]);
         document.getElementById('stat-dist').innerText = Math.round(d) + " м";
-        document.getElementById('stat-count').innerText = db.length;
+        
+        const dogs = db.filter(item => item.species === 'Собака');
+        const cats = db.filter(item => item.species === 'Кошка');
+
+        document.getElementById('stat-dog-count').innerText = dogs.length;
+        document.getElementById('stat-cat-count').innerText = cats.length;
         
         const w = document.getElementById('strip-width').value / 1000;
         const l = d / 1000;
         const k = document.getElementById('k-coeff').value;
+
         if (l > 0 && w > 0) {
-            const dens = (db.length / (l * w)) * k;
-            document.getElementById('stat-density').innerText = dens.toFixed(2) + " ос./км²";
+            const dogDens = (dogs.length / (l * w)) * k;
+            const catDens = (cats.length / (l * w)) * k;
+            document.getElementById('stat-dog-density').innerText = dogDens.toFixed(2) + " ос/км²";
+            document.getElementById('stat-cat-density').innerText = catDens.toFixed(2) + " ос/км²";
         }
     }
 
