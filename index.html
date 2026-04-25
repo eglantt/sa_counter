@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stray Animals Street Counter v1.1.6 (beta)</title>
+    <title>Stray Animals Street Counter v1.1.7 (beta)</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#F2F2F7">
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { box-sizing: border-box; }
@@ -50,6 +56,10 @@
         .rec-dot { width: 8px; height: 8px; background: var(--danger); border-radius: 50%; }
         .pulse { animation: pulse-red 1.5s infinite; }
         @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        
+        /* Мигание при потере GPS */
+        .gps-dead { animation: pulse-danger 1s infinite; background: var(--danger) !important; color: white !important; }
+        @keyframes pulse-danger { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
         .service-bar {
             background: var(--white); border-bottom: 1px solid var(--border);
@@ -104,6 +114,9 @@
 
         .btn-edit { background: var(--white); color: var(--accent); border: 1px solid var(--accent); padding: 4px 10px; border-radius: 6px; font-size: 0.65rem; font-weight: 700; }
         .btn-del-session { background: var(--white); color: var(--danger); border: 1px solid var(--danger); padding: 4px 8px; border-radius: 6px; font-size: 0.65rem; font-weight: 700; }
+        .btn-map-jump { background: var(--accent); color: white; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.6rem; font-weight: 700; }
+
+        .tech-info { font-size: 0.65rem; color: #8E8E93; font-family: monospace; margin-top: 4px; }
 
         footer { text-align: center; padding: 10px; font-size: 0.65rem; color: #8E8E93; background: var(--white); border-top: 1px solid var(--border); }
 
@@ -267,14 +280,14 @@
     </div>
 </div>
 
-<footer>Stray Animals Street Counter v1.1.6 (beta)</footer>
+<footer>Stray Animals Street Counter v1.1.7 (beta)</footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     let sessions = JSON.parse(localStorage.getItem('sc_v109_sessions') || '[]');
     let activeSession = JSON.parse(localStorage.getItem('sc_v109_active') || 'null');
     let currentGroup = [];
-    let watchID = null, wakeLock = null, isFollowing = true, lastCoords = null;
+    let watchID = null, wakeLock = null, isFollowing = true, lastCoords = null, lastGpsTime = Date.now();
     let analysisMode = 'session';
     let analysisSpecies = 'Собака';
 
@@ -291,7 +304,14 @@
         const dateStr = now.toLocaleDateString();
         const timeStr = now.toLocaleTimeString();
         document.getElementById('sys-clock').innerText = `${dateStr} | ${timeStr}`;
+        
+        // Визуальный контроль засыпания GPS
         if (activeSession) {
+            const gpsLag = (Date.now() - lastGpsTime) / 1000;
+            const badge = document.getElementById('gps-acc');
+            if (gpsLag > 20) badge.classList.add('gps-dead');
+            else badge.classList.remove('gps-dead');
+
             const diff = Math.floor((Date.now() - activeSession.startTime) / 1000);
             const h = String(Math.floor(diff / 3600)).padStart(2, '0');
             const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
@@ -362,7 +382,7 @@
             sex: document.querySelector('#sex-ctrl .active').dataset.val,
             age: document.querySelector('#age-ctrl .active').dataset.val,
             tag: document.querySelector('#tag-ctrl .active').dataset.val,
-            time: new Date().toLocaleTimeString(),
+            time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
             light: (h => (h >= 7 && h < 19) ? "☀️ День" : (h >= 19 && h < 21) ? "🌅 Сумерки" : "🌙 Ночь")(new Date().getHours())
         });
         renderGroupPreview(); updateHabitat();
@@ -379,7 +399,9 @@
         if (!lastCoords) return alert("Ожидание GPS координат...");
         activeSession.data.push({
             groupId: Date.now(), habitat: document.getElementById('habitat-sel').value,
-            lat: lastCoords[0], lng: lastCoords[1], animals: currentGroup,
+            lat: lastCoords[0], lng: lastCoords[1], 
+            time: new Date().toLocaleTimeString(),
+            animals: currentGroup,
             k: document.getElementById('k-coeff').value, w: document.getElementById('strip-width').value
         });
         currentGroup = []; renderGroupPreview(); saveActiveSession(); updateMapMarkers(); updateHabitat();
@@ -404,8 +426,10 @@
     }
 
     function initGPS() {
+        lastGpsTime = Date.now();
         if (watchID) navigator.geolocation.clearWatch(watchID);
         watchID = navigator.geolocation.watchPosition(pos => {
+            lastGpsTime = Date.now();
             const acc = Math.round(pos.coords.accuracy);
             lastCoords = [pos.coords.latitude, pos.coords.longitude];
             document.getElementById('gps-acc').innerText = acc + " м";
@@ -500,7 +524,21 @@
                     </div>
                 </div>
                 <div class="journal-body">
-                    ${sess.data.map(g => `<div class="journal-item"><div><b>${g.habitat}</b> | ${g.animals.length} ос.<br><small>${g.animals.map(a => a.species).join(', ')}</small></div>${isCurr ? `<button class="btn-edit" onclick="editEntry(${g.groupId})">ПРАВКА</button>` : ''}</div>`).reverse().join('')}
+                    ${sess.data.map(g => `
+                        <div class="journal-item" style="flex-direction:column; align-items:stretch;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <b>${g.habitat}</b>
+                                <div style="display:flex; gap:5px;">
+                                    <button class="btn-map-jump" onclick="map.setView([${g.lat}, ${g.lng}], 18)">НА КАРТУ</button>
+                                    ${isCurr ? `<button class="btn-edit" onclick="editEntry(${g.groupId})">ПРАВКА</button>` : ''}
+                                </div>
+                            </div>
+                            <div class="tech-info">${g.time} | ${g.lat.toFixed(5)}, ${g.lng.toFixed(5)}</div>
+                            <div style="margin-top:5px; font-size:0.75rem; color:#444;">
+                                ${g.animals.map(a => `<div style="padding:2px 0;">• <small>${a.time}</small> | ${a.species}, ${a.sex}, ${a.age}, ${a.tag}</div>`).join('')}
+                            </div>
+                        </div>
+                    `).reverse().join('')}
                 </div>`;
             container.appendChild(div);
         });
@@ -536,13 +574,13 @@
     }
 
     function exportCSV(onlyActive) {
-        let csv = "\uFEFFObserver;Date;Time;Habitat;Species;Sex;Age;Lat;Lng;K;W;Session_Dist\n";
+        let csv = "\uFEFFObserver;Date;Time;Habitat;Species;Sex;Age;Tag;Lat;Lng;K;W;Session_Dist\n";
         const target = onlyActive ? (activeSession ? [activeSession] : []) : [...sessions, ...(activeSession ? [activeSession] : [])];
         target.forEach(s => {
             s.data.forEach(g => g.animals.forEach(a => {
-                csv += `${s.observer};${new Date(s.id).toLocaleDateString()};${a.time};${g.habitat};${a.species};${a.sex};${a.age};${g.lat};${g.lng};${g.k};${g.w};${(s.distance||s.totalDistance||0).toFixed(2)}\n`;
+                csv += `${s.observer};${new Date(s.id).toLocaleDateString()};${a.time};${g.habitat};${a.species};${a.sex};${a.age};${a.tag};${g.lat};${g.lng};${g.k};${g.w};${(s.distance||s.totalDistance||0).toFixed(2)}\n`;
             }));
-            csv += `TOTAL;${new Date(s.id).toLocaleDateString()};;;;;;;;;;${(s.distance||s.totalDistance||0).toFixed(2)}\n`;
+            csv += `TOTAL;${new Date(s.id).toLocaleDateString()};;;;;;;;;;;${(s.distance||s.totalDistance||0).toFixed(2)}\n`;
         });
         const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); 
         a.download = onlyActive ? 'current_session.csv' : 'full_archive.csv'; a.click();
@@ -568,22 +606,11 @@
     function resetApp() { if(confirm("ВЫ УВЕРЕНЫ? Это удалит ВСЕ сессии и треки за весь период.")) { localStorage.clear(); location.reload(); } }
     function updateMapMarkers() { markersLayer.clearLayers(); if(activeSession) activeSession.data.forEach(g => g.animals.forEach(a => L.circleMarker([g.lat, g.lng], {radius: 5, color: a.species==='Собака'?'#8E44AD':'#E67E22', fillOpacity:0.8}).addTo(markersLayer))); }
 
-    // ИСПРАВЛЕННЫЙ ОБРАБОТЧИК КЛИКОВ (v1.1.6)
     document.querySelectorAll('.segment').forEach(s => s.onclick = function() { 
-        // 1. Обработка кнопок анализа
-        if(this.parentNode.id === 'analysis-mode-ctrl') {
-            setAnalysisMode(this.dataset.mode);
-            return;
-        }
-        if(this.parentNode.id === 'analysis-species-ctrl') {
-            setAnalysisSpecies(this.dataset.species);
-            return;
-        }
-        
-        // 2. Обработка кнопок формы учета
+        if(this.parentNode.id === 'analysis-mode-ctrl') { setAnalysisMode(this.dataset.mode); return; }
+        if(this.parentNode.id === 'analysis-species-ctrl') { setAnalysisSpecies(this.dataset.species); return; }
         this.parentNode.querySelectorAll('.segment').forEach(b => b.classList.remove('active')); 
-        this.classList.add('active'); 
-        updateHabitat(); 
+        this.classList.add('active'); updateHabitat(); 
     });
 
     initUI(); initGPS();
