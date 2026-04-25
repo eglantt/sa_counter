@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stray Animals Street Counter v1.1.7 (beta)</title>
+    <title>Stray Animals Street Counter v1.1.8 (beta)</title>
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#F2F2F7">
+    <link rel="shortcut icon" href="https://cdn-icons-png.flaticon.com/512/616/616408.png">
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
@@ -57,7 +58,6 @@
         .pulse { animation: pulse-red 1.5s infinite; }
         @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
         
-        /* Мигание при потере GPS */
         .gps-dead { animation: pulse-danger 1s infinite; background: var(--danger) !important; color: white !important; }
         @keyframes pulse-danger { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
@@ -114,7 +114,7 @@
 
         .btn-edit { background: var(--white); color: var(--accent); border: 1px solid var(--accent); padding: 4px 10px; border-radius: 6px; font-size: 0.65rem; font-weight: 700; }
         .btn-del-session { background: var(--white); color: var(--danger); border: 1px solid var(--danger); padding: 4px 8px; border-radius: 6px; font-size: 0.65rem; font-weight: 700; }
-        .btn-map-jump { background: var(--accent); color: white; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.6rem; font-weight: 700; }
+        .btn-map-jump { background: var(--accent); color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.65rem; font-weight: 700; }
 
         .tech-info { font-size: 0.65rem; color: #8E8E93; font-family: monospace; margin-top: 4px; }
 
@@ -280,10 +280,27 @@
     </div>
 </div>
 
-<footer>Stray Animals Street Counter v1.1.7 (beta)</footer>
+<footer>Stray Animals Street Counter v1.1.8 (beta)</footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+    // Генерация динамического манифеста PWA
+    (function() {
+        const manifest = {
+            "name": "Stray Animals Counter",
+            "short_name": "SA Counter",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#F2F2F7",
+            "theme_color": "#F2F2F7",
+            "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/616/616408.png", "sizes": "512x512", "type": "image/png" }]
+        };
+        const stringManifest = JSON.stringify(manifest);
+        const blob = new Blob([stringManifest], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(blob);
+        document.querySelector('head').insertAdjacentHTML('beforeend', `<link rel="manifest" href="${manifestURL}">`);
+    })();
+
     let sessions = JSON.parse(localStorage.getItem('sc_v109_sessions') || '[]');
     let activeSession = JSON.parse(localStorage.getItem('sc_v109_active') || 'null');
     let currentGroup = [];
@@ -296,6 +313,7 @@
     const userMarker = L.circleMarker([0,0], {radius: 7, color: 'white', fillColor: '#007AFF', fillOpacity: 1, weight: 2}).addTo(map);
     const trackLine = L.polyline([], {color: '#007AFF', weight: 4, opacity: 0.6}).addTo(map);
     let markersLayer = L.layerGroup().addTo(map);
+    let archiveLayer = L.layerGroup().addTo(map); // Слой для архивных меток
 
     async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.requestWakeLock('screen'); } catch (err) {} }
     
@@ -305,7 +323,6 @@
         const timeStr = now.toLocaleTimeString();
         document.getElementById('sys-clock').innerText = `${dateStr} | ${timeStr}`;
         
-        // Визуальный контроль засыпания GPS
         if (activeSession) {
             const gpsLag = (Date.now() - lastGpsTime) / 1000;
             const badge = document.getElementById('gps-acc');
@@ -327,6 +344,10 @@
     function switchTab(idx) {
         document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
         document.querySelectorAll('.content-section').forEach((s, i) => s.classList.toggle('active', i === idx));
+        
+        // Очистка архива при возврате в Учёт
+        if (idx === 0) archiveLayer.clearLayers();
+        
         if (idx === 1) renderJournal();
         if (idx === 3) calculateAnalytics();
         updateStorageIndicator();
@@ -503,6 +524,30 @@
         });
     }
 
+    // ВОССТАНОВЛЕНИЕ СЕССИИ НА КАРТЕ
+    function showArchiveSession(sessionId) {
+        archiveLayer.clearLayers();
+        const sess = sessions.find(s => s.id === sessionId) || (activeSession && activeSession.id === sessionId ? activeSession : null);
+        if (!sess || sess.data.length === 0) return;
+
+        const bounds = [];
+        sess.data.forEach(g => {
+            g.animals.forEach(a => {
+                const color = a.species === 'Собака' ? 'var(--dog-color)' : 'var(--cat-color)';
+                L.circleMarker([g.lat, g.lng], {
+                    radius: 7, 
+                    color: 'white', 
+                    weight: 2, 
+                    fillColor: color, 
+                    fillOpacity: 0.9
+                }).addTo(archiveLayer);
+            });
+            bounds.push([g.lat, g.lng]);
+        });
+
+        if (bounds.length > 0) map.fitBounds(bounds, {padding: [50, 50]});
+    }
+
     function renderJournal() {
         const container = document.getElementById('journal-accordion');
         container.innerHTML = "";
@@ -524,12 +569,13 @@
                     </div>
                 </div>
                 <div class="journal-body">
+                    <button class="btn-main btn-add" style="margin-bottom:10px; padding:10px; font-size:0.75rem;" onclick="showArchiveSession(${sess.id})">ПОКАЗАТЬ ВСЮ СЕССИЮ НА КАРТЕ</button>
                     ${sess.data.map(g => `
                         <div class="journal-item" style="flex-direction:column; align-items:stretch;">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
                                 <b>${g.habitat}</b>
                                 <div style="display:flex; gap:5px;">
-                                    <button class="btn-map-jump" onclick="map.setView([${g.lat}, ${g.lng}], 18)">НА КАРТУ</button>
+                                    <button class="btn-map-jump" onclick="map.setView([${g.lat}, ${g.lng}], 18)">К ТОЧКЕ</button>
                                     ${isCurr ? `<button class="btn-edit" onclick="editEntry(${g.groupId})">ПРАВКА</button>` : ''}
                                 </div>
                             </div>
