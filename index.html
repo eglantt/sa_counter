@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stray Animals Street Counter v1.1.9 (beta)</title>
+    <title>Stray Animals Street Counter v1.1.10 (beta)</title>
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -283,11 +283,11 @@
     </div>
 </div>
 
-<footer>Stray Animals Street Counter v1.1.9 (beta)</footer>
+<footer>Stray Animals Street Counter v1.1.10 (beta)</footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // Генерируем манифест PWA
+    // Динамический манифест PWA
     (function() {
         const manifest = {
             "name": "Stray Animals Counter",
@@ -322,16 +322,9 @@
     
     function updateClock() {
         const now = new Date();
-        const dateStr = now.toLocaleDateString();
-        const timeStr = now.toLocaleTimeString();
-        document.getElementById('sys-clock').innerText = `${dateStr} | ${timeStr}`;
+        document.getElementById('sys-clock').innerText = now.toLocaleDateString() + ' | ' + now.toLocaleTimeString();
         
         if (activeSession) {
-            const gpsLag = (Date.now() - lastGpsTime) / 1000;
-            const badge = document.getElementById('gps-acc');
-            if (gpsLag > 20) badge.classList.add('gps-dead');
-            else badge.classList.remove('gps-dead');
-
             const diff = Math.floor((Date.now() - activeSession.startTime) / 1000);
             const h = String(Math.floor(diff / 3600)).padStart(2, '0');
             const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
@@ -341,6 +334,16 @@
         }
     }
     setInterval(updateClock, 1000);
+
+    // Пинг статуса датчика GPS - теперь раз в 30 секунд
+    setInterval(() => {
+        if (activeSession) {
+            const gpsLag = (Date.now() - lastGpsTime) / 1000;
+            const badge = document.getElementById('gps-acc');
+            if (gpsLag > 30) badge.classList.add('gps-dead');
+            else badge.classList.remove('gps-dead');
+        }
+    }, 30000);
 
     function toggleFollow() { isFollowing = !isFollowing; document.getElementById('follow-btn').classList.toggle('active', isFollowing); }
     
@@ -520,7 +523,7 @@
             g.animals.forEach(a => {
                 const isOwned = (a.tag === 'Ошейник' || a.tag === 'Порода');
                 const color = a.species === 'Собака' ? 'var(--dog-color)' : 'var(--cat-color)';
-                const m = L.circleMarker([g.lat, g.lng], { radius: 7, color: 'white', weight: 2, fillColor: color, fillOpacity: 0.9 }).addTo(archiveLayer);
+                L.circleMarker([g.lat, g.lng], { radius: 7, color: 'white', weight: 2, fillColor: color, fillOpacity: 0.9 }).addTo(archiveLayer);
                 if(isOwned) L.circleMarker([g.lat, g.lng], { radius: 2, color: 'white', weight: 1, fillColor: 'white', fillOpacity: 1 }).addTo(archiveLayer);
             });
             bounds.push([g.lat, g.lng]);
