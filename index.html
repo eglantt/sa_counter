@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stray Animals Street Counter v1.1.8 (beta)</title>
+    <title>Stray Animals Street Counter v1.1.9 (beta)</title>
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -251,6 +251,9 @@
                 <div class="stat-card" id="species-card-ui">
                     <span class="stat-hint" id="species-count-label">Собаки (Всего)</span>
                     <span class="stat-val" id="stat-species-count">0</span>
+                    <div style="margin-top:5px; padding-top:5px; border-top:1px solid #E5E5EA; font-size:0.75rem; color:#636366;">
+                        Потенциально безнадзорные (хоз): <b id="stat-owned-count">0</b> (<span id="stat-owned-pct">0</span>%)
+                    </div>
                 </div>
 
                 <div class="stat-card" style="border-left: 6px solid var(--accent);">
@@ -280,11 +283,11 @@
     </div>
 </div>
 
-<footer>Stray Animals Street Counter v1.1.8 (beta)</footer>
+<footer>Stray Animals Street Counter v1.1.9 (beta)</footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // Генерация динамического манифеста PWA
+    // Генерируем манифест PWA
     (function() {
         const manifest = {
             "name": "Stray Animals Counter",
@@ -313,7 +316,7 @@
     const userMarker = L.circleMarker([0,0], {radius: 7, color: 'white', fillColor: '#007AFF', fillOpacity: 1, weight: 2}).addTo(map);
     const trackLine = L.polyline([], {color: '#007AFF', weight: 4, opacity: 0.6}).addTo(map);
     let markersLayer = L.layerGroup().addTo(map);
-    let archiveLayer = L.layerGroup().addTo(map); // Слой для архивных меток
+    let archiveLayer = L.layerGroup().addTo(map);
 
     async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.requestWakeLock('screen'); } catch (err) {} }
     
@@ -344,10 +347,7 @@
     function switchTab(idx) {
         document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
         document.querySelectorAll('.content-section').forEach((s, i) => s.classList.toggle('active', i === idx));
-        
-        // Очистка архива при возврате в Учёт
         if (idx === 0) archiveLayer.clearLayers();
-        
         if (idx === 1) renderJournal();
         if (idx === 3) calculateAnalytics();
         updateStorageIndicator();
@@ -380,10 +380,7 @@
         if (sel.value === "") {
             sel.classList.add('habitat-error');
             document.getElementById('habitat-err-msg').style.display = 'block';
-            setTimeout(() => { 
-                sel.classList.remove('habitat-error'); 
-                document.getElementById('habitat-err-msg').style.display = 'none';
-            }, 2000);
+            setTimeout(() => { sel.classList.remove('habitat-error'); document.getElementById('habitat-err-msg').style.display = 'none'; }, 2000);
             return false;
         }
         return true;
@@ -467,19 +464,8 @@
         }, err => console.error(err), { enableHighAccuracy: true });
     }
 
-    function setAnalysisMode(mode) {
-        analysisMode = mode;
-        const ctrl = document.getElementById('analysis-mode-ctrl');
-        ctrl.querySelectorAll('.segment').forEach(s => s.classList.toggle('active', s.dataset.mode === mode));
-        calculateAnalytics();
-    }
-
-    function setAnalysisSpecies(species) {
-        analysisSpecies = species;
-        const ctrl = document.getElementById('analysis-species-ctrl');
-        ctrl.querySelectorAll('.segment').forEach(s => s.classList.toggle('active', s.dataset.species === species));
-        calculateAnalytics();
-    }
+    function setAnalysisMode(mode) { analysisMode = mode; calculateAnalytics(); }
+    function setAnalysisSpecies(species) { analysisSpecies = species; calculateAnalytics(); }
 
     function calculateAnalytics() {
         const target = analysisMode === 'session' ? (activeSession ? [activeSession] : []) : [...sessions, ...(activeSession ? [activeSession] : [])];
@@ -487,7 +473,7 @@
         document.getElementById('species-count-label').innerText = analysisSpecies === 'Собака' ? 'Собаки (Всего)' : 'Кошки (Всего)';
         document.getElementById('species-card-ui').style.borderLeft = `6px solid ${analysisSpecies === 'Собака' ? 'var(--dog-color)' : 'var(--cat-color)'}`;
         
-        let totalD = 0, speciesCount = 0, areaSum = 0;
+        let totalD = 0, speciesCount = 0, areaSum = 0, ownedCount = 0;
         let biotypes = {};
 
         target.forEach(s => {
@@ -496,7 +482,11 @@
             s.data.forEach(g => {
                 if (!biotypes[g.habitat]) biotypes[g.habitat] = { count: 0, w: g.w, k: g.k };
                 g.animals.forEach(a => {
-                    if (a.species === analysisSpecies) { speciesCount++; biotypes[g.habitat].count++; }
+                    if (a.species === analysisSpecies) { 
+                        speciesCount++; 
+                        biotypes[g.habitat].count++; 
+                        if(a.tag === 'Ошейник' || a.tag === 'Порода') ownedCount++;
+                    }
                 });
             });
             const w = s.data.length > 0 ? s.data[0].w : document.getElementById('strip-width').value;
@@ -505,46 +495,36 @@
 
         document.getElementById('stat-dist').innerText = (totalD/1000).toFixed(2) + " км";
         document.getElementById('stat-species-count').innerText = speciesCount;
+        document.getElementById('stat-owned-count').innerText = ownedCount;
+        document.getElementById('stat-owned-pct').innerText = speciesCount > 0 ? ((ownedCount / speciesCount) * 100).toFixed(1) : "0";
 
         const kGlobal = document.getElementById('k-coeff').value;
-        if (areaSum > 0.001) {
-            document.getElementById('stat-total-density').innerText = ((speciesCount / areaSum) * kGlobal).toFixed(2);
-        } else {
-            document.getElementById('stat-total-density').innerText = "--";
-        }
+        document.getElementById('stat-total-density').innerText = areaSum > 0.001 ? ((speciesCount / areaSum) * kGlobal).toFixed(2) : "--";
 
         const tbody = document.querySelector('#biotope-table tbody');
         tbody.innerHTML = "";
         const L_total = totalD / 1000;
         Object.keys(biotypes).forEach(h => {
             const b = biotypes[h];
-            const W = b.w / 1000;
-            const dens = L_total > 0.02 ? ((b.count / (L_total * W)) * b.k).toFixed(1) : "--";
+            const dens = L_total > 0.02 ? ((b.count / (L_total * (b.w / 1000))) * b.k).toFixed(1) : "--";
             tbody.innerHTML += `<tr><td>${h}</td><td>${b.count}</td><td>${dens}</td></tr>`;
         });
     }
 
-    // ВОССТАНОВЛЕНИЕ СЕССИИ НА КАРТЕ
     function showArchiveSession(sessionId) {
         archiveLayer.clearLayers();
         const sess = sessions.find(s => s.id === sessionId) || (activeSession && activeSession.id === sessionId ? activeSession : null);
         if (!sess || sess.data.length === 0) return;
-
         const bounds = [];
         sess.data.forEach(g => {
             g.animals.forEach(a => {
+                const isOwned = (a.tag === 'Ошейник' || a.tag === 'Порода');
                 const color = a.species === 'Собака' ? 'var(--dog-color)' : 'var(--cat-color)';
-                L.circleMarker([g.lat, g.lng], {
-                    radius: 7, 
-                    color: 'white', 
-                    weight: 2, 
-                    fillColor: color, 
-                    fillOpacity: 0.9
-                }).addTo(archiveLayer);
+                const m = L.circleMarker([g.lat, g.lng], { radius: 7, color: 'white', weight: 2, fillColor: color, fillOpacity: 0.9 }).addTo(archiveLayer);
+                if(isOwned) L.circleMarker([g.lat, g.lng], { radius: 2, color: 'white', weight: 1, fillColor: 'white', fillOpacity: 1 }).addTo(archiveLayer);
             });
             bounds.push([g.lat, g.lng]);
         });
-
         if (bounds.length > 0) map.fitBounds(bounds, {padding: [50, 50]});
     }
 
@@ -593,20 +573,14 @@
     function toggleModal(id, show) { document.getElementById(id).style.display = show ? 'flex' : 'none'; }
     function downloadBackupJSON() {
         const blob = new Blob([JSON.stringify({ sessions, active: activeSession })], { type: 'application/json' });
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); 
-        a.download = `stray_backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `stray_backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
     }
     function importBackupJSON(event) {
         const reader = new FileReader();
         reader.onload = e => {
             try {
                 const d = JSON.parse(e.target.result);
-                if (d.sessions) {
-                    sessions = d.sessions; activeSession = d.active || null;
-                    localStorage.setItem('sc_v109_sessions', JSON.stringify(sessions));
-                    if (activeSession) localStorage.setItem('sc_v109_active', JSON.stringify(activeSession));
-                    location.reload();
-                }
+                if (d.sessions) { sessions = d.sessions; activeSession = d.active || null; localStorage.setItem('sc_v109_sessions', JSON.stringify(sessions)); if (activeSession) localStorage.setItem('sc_v109_active', JSON.stringify(activeSession)); location.reload(); }
             } catch (err) { alert("Ошибка JSON!"); }
         };
         reader.readAsText(event.target.files[0]);
@@ -620,16 +594,16 @@
     }
 
     function exportCSV(onlyActive) {
-        let csv = "\uFEFFObserver;Date;Time;Habitat;Species;Sex;Age;Tag;Lat;Lng;K;W;Session_Dist\n";
+        let csv = "\uFEFFObserver;Date;Time;Habitat;Species;Sex;Age;Tag;Category;Lat;Lng;K;W;Session_Dist\n";
         const target = onlyActive ? (activeSession ? [activeSession] : []) : [...sessions, ...(activeSession ? [activeSession] : [])];
         target.forEach(s => {
             s.data.forEach(g => g.animals.forEach(a => {
-                csv += `${s.observer};${new Date(s.id).toLocaleDateString()};${a.time};${g.habitat};${a.species};${a.sex};${a.age};${a.tag};${g.lat};${g.lng};${g.k};${g.w};${(s.distance||s.totalDistance||0).toFixed(2)}\n`;
+                const cat = (a.tag === 'Ошейник' || a.tag === 'Порода') ? "Безнадзорное" : "Бродячее";
+                csv += `${s.observer};${new Date(s.id).toLocaleDateString()};${a.time};${g.habitat};${a.species};${a.sex};${a.age};${a.tag};${cat};${g.lat};${g.lng};${g.k};${g.w};${(s.distance||s.totalDistance||0).toFixed(2)}\n`;
             }));
             csv += `TOTAL;${new Date(s.id).toLocaleDateString()};;;;;;;;;;;${(s.distance||s.totalDistance||0).toFixed(2)}\n`;
         });
-        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); 
-        a.download = onlyActive ? 'current_session.csv' : 'full_archive.csv'; a.click();
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = onlyActive ? 'current_session.csv' : 'full_archive.csv'; a.click();
     }
 
     function initUI() {
@@ -653,10 +627,9 @@
     function updateMapMarkers() { markersLayer.clearLayers(); if(activeSession) activeSession.data.forEach(g => g.animals.forEach(a => L.circleMarker([g.lat, g.lng], {radius: 5, color: a.species==='Собака'?'#8E44AD':'#E67E22', fillOpacity:0.8}).addTo(markersLayer))); }
 
     document.querySelectorAll('.segment').forEach(s => s.onclick = function() { 
-        if(this.parentNode.id === 'analysis-mode-ctrl') { setAnalysisMode(this.dataset.mode); return; }
-        if(this.parentNode.id === 'analysis-species-ctrl') { setAnalysisSpecies(this.dataset.species); return; }
-        this.parentNode.querySelectorAll('.segment').forEach(b => b.classList.remove('active')); 
-        this.classList.add('active'); updateHabitat(); 
+        if(this.parentNode.id === 'analysis-mode-ctrl') { setAnalysisMode(this.dataset.mode); this.parentNode.querySelectorAll('.segment').forEach(b => b.classList.remove('active')); this.classList.add('active'); return; }
+        if(this.parentNode.id === 'analysis-species-ctrl') { setAnalysisSpecies(this.dataset.species); this.parentNode.querySelectorAll('.segment').forEach(b => b.classList.remove('active')); this.classList.add('active'); return; }
+        this.parentNode.querySelectorAll('.segment').forEach(b => b.classList.remove('active')); this.classList.add('active'); updateHabitat(); 
     });
 
     initUI(); initGPS();
